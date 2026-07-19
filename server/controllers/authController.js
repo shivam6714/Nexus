@@ -60,25 +60,25 @@ const login = async (req, res) => {
                 message: "Invalid credentials",
             });
         }
-        const token =jwt.sign(
+        const token = jwt.sign(
             {
-                id:user._id,
+                id: user._id,
             },
             process.env.JWT_SECRET,
             {
-                expiresIn:"7D",
+                expiresIn: "7D",
             }
         );
 
         res.status(200).json({
             success: true,
-            message:"login successful",
+            message: "login successful",
             token,
-            user:{
-                id:user._id,
-                username:user.username,
-                email:user.email,
-                avatar:user.avatar,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                avatar: user.avatar,
             },
         });
 
@@ -89,7 +89,15 @@ const login = async (req, res) => {
         });
     }
 };
+
+const getProfile = async (req, res) => {
+    res.status(200).json({
+        success: true,
+        user: req.user,
+    });
+};
 module.exports = {
     register,
     login,
+    getProfile,
 };
