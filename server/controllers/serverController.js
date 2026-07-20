@@ -31,6 +31,26 @@ const createServer = async (req, res) => {
     }
 };
 
+const getMyServers=async(req,res)=>{
+    try{
+        const servers=await Server.find({
+            members: req.user._id,
+        });
+        res.status(200).json({
+            success:true,
+            servers,
+        });
+
+    }
+    catch(error){
+        res.status(500).json({
+            success:false,
+            message:error.message,
+        });
+    }
+};
+
 module.exports={
     createServer,
+    getMyServers,
 };

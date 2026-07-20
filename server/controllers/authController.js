@@ -21,11 +21,28 @@ const register = async (req, res) => {
             email,
             password: hashedPassword,
         });
+        const token = jwt.sign(
+            {
+                id: user._id,
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: "7d",
+            }
+        );
+
         res.status(201).json({
             success: true,
-            message: "User registered sucessfully",
-            user,
+            message: "User registered successfully",
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                avatar: user.avatar,
+            },
         });
+
 
     }
     catch (error) {
@@ -66,7 +83,7 @@ const login = async (req, res) => {
             },
             process.env.JWT_SECRET,
             {
-                expiresIn: "7D",
+                expiresIn: "7d",
             }
         );
 
