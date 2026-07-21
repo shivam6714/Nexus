@@ -1,23 +1,28 @@
+const Message = require("../models/Message");
 const Channel = require("../models/Channel");
 const Server = require("../models/Server");
 
-const createChannel = async (req, res) => {
+const createMessage = async (req, res) => {
     try {
-        const { name, description, serverId, type } = req.body;
 
-        if (!name || !serverId) {
+        const { content, channelId } = req.body;
+
+        if (!content || !channelId) {
             return res.status(400).json({
                 success: false,
-                message: "Name and server ID is required",
+                message: "Content and channel ID are required",
             });
         }
-        const server = await Server.findById(serverId);
-        if (!server) {
+        const channel = await Channel.findById(channelId);
+
+        if (!channel) {
             return res.status(404).json({
                 success: false,
-                message: "Server not found"
+                message: "Channel not found",
             });
         }
+
+        const server = await Server.findById(channel.server);
 
         const isMember = server.members
             .map(member => member.toString())
@@ -26,29 +31,21 @@ const createChannel = async (req, res) => {
         if (!isMember) {
             return res.status(403).json({
                 success: false,
-                message: "You are not member of this server",
+                message: "You are not a member of this server",
             });
         }
-        const channel = await Channel.create({
-            name,
-            description,
-            server: serverId,
-            createdBy: req.user._id,
-            type,
+        const message = await Message.create({
+            content,
+            sender: req.user._id,
+            channel: channel._id,
         });
-
-        server.channels.push(channel._id);
-
-        await server.save();
-
         res.status(201).json({
             success: true,
-            message: "Channel created successfully",
-            channel,
+            message: "Message sent successfully",
+            message,
         });
-    }
 
-    catch (error) {
+    } catch (error) {
         res.status(500).json({
             success: false,
             message: error.message,
@@ -56,18 +53,27 @@ const createChannel = async (req, res) => {
     }
 };
 
-const getChannels = async (req, res) => {
+const getMessages = async (req, res) => {
     try {
-        const { serverId } = req.params;
+        const { channelId } = req.params;
 
-        if (!serverId) {
+        if (!channelId) {
             return res.status(400).json({
                 success: false,
-                message: "Server ID is required",
+                message: "Channel ID is required",
             });
         }
 
-        const server = await Server.findById(serverId);
+        const channel = await Channel.findById(channelId);
+
+        if (!channel) {
+            return res.status(404).json({
+                success: false,
+                message: "Channel not found",
+            });
+        }
+
+        const server = await Server.findById(channel.server);
 
         if (!server) {
             return res.status(404).json({
@@ -87,13 +93,13 @@ const getChannels = async (req, res) => {
             });
         }
 
-        const channels = await Channel.find({
-            server: serverId,
-        });
+        const messages = await Message.find({
+            channel: channelId,
+        }).populate("sender", "username avatar");
 
         res.status(200).json({
             success: true,
-            channels,
+            messages,
         });
 
     } catch (error) {
@@ -103,7 +109,8 @@ const getChannels = async (req, res) => {
         });
     }
 };
+
 module.exports = {
-    createChannel,
-    getChannels,
+    createMessage,
+    getMessages,
 };
