@@ -1,9 +1,7 @@
+import Chat from "./pages/Chat";
+
 function App() {
-  return (
-    <div>
-      <h1>Welcome to nexus</h1>
-    </div>
-  );
+  return <Chat />;
 }
 
 export default App;
