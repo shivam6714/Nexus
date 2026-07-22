@@ -1,8 +1,20 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import ServerSidebar from "../components/ServerSidebar";
-import ChannelSidebar from "../components/ChannelSidebar";
+
 import socket from "../socket/socket";
+
+import ServerSidebar from "../components/sidebar/ServerSidebar";
+import ChannelSidebar from "../components/sidebar/ChannelSidebar";
+
+import MainLayout from "../components/layout/MainLayout";
+import ChatArea from "../components/layout/ChatArea";
+import TopBar from "../components/layout/TopBar";
+import MembersSidebar from "../components/layout/MembersSidebar";
+import MessageInput from "../components/layout/MessageInput";
+
+import MessageList from "../components/message/MessageList";
+
+import "../styles/layout.css";
 
 function Chat() {
     const [message, setMessage] = useState("");
@@ -17,6 +29,8 @@ function Chat() {
     useEffect(() => {
         console.log("Selected Channel:", selectedChannel);
     }, [selectedChannel]);
+
+    
 
     // Fetch servers
     useEffect(() => {
@@ -172,38 +186,37 @@ function Chat() {
     };
 
     return (
-        <div>
-            <h1>Nexus Chat</h1>
-
+        <MainLayout>
+            {/* Server Sidebar */}
             <ServerSidebar
                 servers={servers}
                 selectedServer={selectedServer}
                 onSelectServer={setSelectedServer}
             />
 
+            {/* Channel Sidebar */}
             <ChannelSidebar
                 channels={channels}
                 selectedChannel={selectedChannel}
                 onSelectChannel={setSelectedChannel}
             />
 
-            <div>
-                {messages.map((msg) => (
-                    <p key={msg._id}>
-                        <strong>{msg.sender.username}:</strong> {msg.content}
-                    </p>
-                ))}
-            </div>
+            {/* Chat Area */}
+            <ChatArea>
+                <TopBar channel={selectedChannel} />
 
-            <input
-                type="text"
-                placeholder="Type a message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-            />
+                <MessageList messages={messages} />
 
-            <button onClick={handleSend}>Send</button>
-        </div>
+                <MessageInput
+                    message={message}
+                    setMessage={setMessage}
+                    handleSend={handleSend}
+                />
+            </ChatArea>
+
+            {/* Members Sidebar */}
+            <MembersSidebar />
+        </MainLayout>
     );
 }
 
