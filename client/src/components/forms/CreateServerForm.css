@@ -1,0 +1,46 @@
+.create-server-form{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+}
+
+.create-server-form label{
+    color:white;
+    font-size:14px;
+}
+
+.create-server-form input,
+.create-server-form textarea{
+    background:#1e1f22;
+    color:white;
+
+    border:none;
+    border-radius:8px;
+
+    padding:12px;
+    outline:none;
+}
+
+.create-server-form textarea{
+    resize:none;
+    height:80px;
+}
+
+.create-server-form button{
+    margin-top:10px;
+
+    padding:12px;
+
+    border:none;
+    border-radius:8px;
+
+    background:#5865f2;
+    color:white;
+
+    cursor:pointer;
+    font-weight:600;
+}
+
+.create-server-form button:hover{
+    background:#4752c4;
+}

@@ -1,12 +1,18 @@
 import "./ServerSidebar.css";
 
-function ServerSidebar({ servers, selectedServer, onSelectServer }) {
+function ServerSidebar({
+    servers,
+    selectedServer,
+    onSelectServer,
+    onCreateServer,
+}) {
     return (
         <aside className="server-sidebar">
             <div className="server-logo">N</div>
 
             <div className="server-list">
                 {servers.map((server) => (
+
                     <button
                         key={server._id}
                         className={`server-button ${selectedServer?._id === server._id ? "active" : ""
@@ -20,6 +26,13 @@ function ServerSidebar({ servers, selectedServer, onSelectServer }) {
                         {server.name.charAt(0).toUpperCase()}
                     </button>
                 ))}
+                <button
+                    className="server-button add-server"
+                    onClick={onCreateServer}
+                    title="Create Server"
+                >
+                    +
+                </button>
             </div>
         </aside>
     );

@@ -63,3 +63,16 @@
     background: #5865f2;
     border-radius: 16px;
 }
+
+.add-server {
+    background: #2b2d31;
+    color: #23a55a;
+    font-size: 28px;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.add-server:hover {
+    background: #23a55a;
+    color: white;
+}

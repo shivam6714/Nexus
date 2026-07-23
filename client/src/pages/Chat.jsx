@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import Modal from "../components/common/Modal";
+import CreateServerForm from "../components/forms/CreateServerForm";
 import axios from "axios";
-
+import { createServer } from "../services/serverService";
 import socket from "../socket/socket";
 
 import ServerSidebar from "../components/sidebar/ServerSidebar";
@@ -26,11 +28,13 @@ function Chat() {
     const [channels, setChannels] = useState([]);
     const [selectedChannel, setSelectedChannel] = useState(null);
 
+    const [showCreateServer, setShowCreateServer] = useState(false);
+
     useEffect(() => {
         console.log("Selected Channel:", selectedChannel);
     }, [selectedChannel]);
 
-    
+
 
     // Fetch servers
     useEffect(() => {
@@ -184,39 +188,66 @@ function Chat() {
 
         setMessage("");
     };
+    const handleCreateServer = async (serverData) => {
+        try {
+            const data = await createServer(serverData);
+
+            // Add the new server to the sidebar immediately
+            setServers((prev) => [...prev, data.server]);
+
+            // Select the new server
+            setSelectedServer(data.server);
+
+            // Close the modal
+            setShowCreateServer(false);
+
+        } catch (error) {
+            console.error(error);
+            alert("Failed to create server");
+        }
+    };
 
     return (
-        <MainLayout>
-            {/* Server Sidebar */}
-            <ServerSidebar
-                servers={servers}
-                selectedServer={selectedServer}
-                onSelectServer={setSelectedServer}
-            />
-
-            {/* Channel Sidebar */}
-            <ChannelSidebar
-                channels={channels}
-                selectedChannel={selectedChannel}
-                onSelectChannel={setSelectedChannel}
-            />
-
-            {/* Chat Area */}
-            <ChatArea>
-                <TopBar channel={selectedChannel} />
-
-                <MessageList messages={messages} />
-
-                <MessageInput
-                    message={message}
-                    setMessage={setMessage}
-                    handleSend={handleSend}
+        <>
+            <MainLayout>
+                <ServerSidebar
+                    servers={servers}
+                    selectedServer={selectedServer}
+                    onSelectServer={setSelectedServer}
+                    onCreateServer={() => setShowCreateServer(true)}
                 />
-            </ChatArea>
 
-            {/* Members Sidebar */}
-            <MembersSidebar />
-        </MainLayout>
+                <ChannelSidebar
+                    channels={channels}
+                    selectedChannel={selectedChannel}
+                    onSelectChannel={setSelectedChannel}
+                />
+
+                <ChatArea>
+                    <TopBar channel={selectedChannel} />
+
+                    <MessageList messages={messages} />
+
+                    <MessageInput
+                        message={message}
+                        setMessage={setMessage}
+                        handleSend={handleSend}
+                    />
+                </ChatArea>
+
+                <MembersSidebar />
+            </MainLayout>
+
+            <Modal
+                isOpen={showCreateServer}
+                title="Create Server"
+                onClose={() => setShowCreateServer(false)}
+            >
+                <CreateServerForm
+                    onSubmit={handleCreateServer}
+                />
+            </Modal>
+        </>
     );
 }
 
