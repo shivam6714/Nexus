@@ -1,0 +1,28 @@
+{
+  "name": "nexus",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "client": "cd client && npm run dev",
+    "server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev:wait": "concurrently \"npm run server\" \"wait-on tcp:5000 && npm run client\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shivam6714/Nexus.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/shivam6714/Nexus/issues"
+  },
+  "homepage": "https://github.com/shivam6714/Nexus#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "wait-on": "^9.1.0"
+  }
+}

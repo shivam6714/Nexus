@@ -7,13 +7,14 @@ import socket from "../socket/socket";
 
 import ServerSidebar from "../components/sidebar/ServerSidebar";
 import ChannelSidebar from "../components/sidebar/ChannelSidebar";
+import CreateChannelForm from "../components/forms/CreateChannelForm";
 
 import MainLayout from "../components/layout/MainLayout";
 import ChatArea from "../components/layout/ChatArea";
 import TopBar from "../components/layout/TopBar";
 import MembersSidebar from "../components/layout/MembersSidebar";
 import MessageInput from "../components/layout/MessageInput";
-
+import { createChannel } from "../services/channelService";
 import MessageList from "../components/message/MessageList";
 
 import "../styles/layout.css";
@@ -29,12 +30,15 @@ function Chat() {
     const [selectedChannel, setSelectedChannel] = useState(null);
 
     const [showCreateServer, setShowCreateServer] = useState(false);
+    const [showCreateChannel, setShowCreateChannel] = useState(false);
+
+    useEffect(() => {
+        console.log("showCreateChannel:", showCreateChannel);
+    }, [showCreateChannel]);
 
     useEffect(() => {
         console.log("Selected Channel:", selectedChannel);
     }, [selectedChannel]);
-
-
 
     // Fetch servers
     useEffect(() => {
@@ -188,22 +192,37 @@ function Chat() {
 
         setMessage("");
     };
+
     const handleCreateServer = async (serverData) => {
         try {
             const data = await createServer(serverData);
 
-            // Add the new server to the sidebar immediately
             setServers((prev) => [...prev, data.server]);
-
-            // Select the new server
             setSelectedServer(data.server);
-
-            // Close the modal
             setShowCreateServer(false);
-
         } catch (error) {
             console.error(error);
             alert("Failed to create server");
+        }
+    };
+
+    const handleCreateChannel = async (channelData) => {
+
+        try {
+            console.log("Calling createChannel service...");
+
+            const data = await createChannel({
+                ...channelData,
+                serverId: selectedServer._id,
+            });
+
+            
+
+            setChannels((prev) => [...prev, data.channel]);
+            setSelectedChannel(data.channel);
+            setShowCreateChannel(false);
+        } catch (error) {
+            console.error("Create channel error:", error);
         }
     };
 
@@ -221,6 +240,10 @@ function Chat() {
                     channels={channels}
                     selectedChannel={selectedChannel}
                     onSelectChannel={setSelectedChannel}
+                    onCreateChannel={() => {
+                        console.log("Channel + clicked");
+                        setShowCreateChannel(true);
+                    }}
                 />
 
                 <ChatArea>
@@ -243,12 +266,18 @@ function Chat() {
                 title="Create Server"
                 onClose={() => setShowCreateServer(false)}
             >
-                <CreateServerForm
-                    onSubmit={handleCreateServer}
-                />
+                <CreateServerForm onSubmit={handleCreateServer} />
+            </Modal>
+
+            <Modal
+                isOpen={showCreateChannel}
+                title="Create Channel"
+                onClose={() => setShowCreateChannel(false)}
+            >
+                <CreateChannelForm onSubmit={handleCreateChannel} />
             </Modal>
         </>
     );
 }
 
-export default Chat;
+export default Chat;    

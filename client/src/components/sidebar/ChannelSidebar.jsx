@@ -1,29 +1,46 @@
+import "./ChannelSidebar.css";
+
 function ChannelSidebar({
     channels,
     selectedChannel,
     onSelectChannel,
+    onCreateChannel,
 }) {
     return (
-        <div>
-            <h2>Channels</h2>
+        <aside className="channel-sidebar">
+            <div className="channel-header">
+                <h3>Channels</h3>
 
-            {channels.map((channel) => (
                 <button
-                    key={channel._id}
-                    onClick={() => onSelectChannel(channel)}
-                    style={{
-                        display: "block",
-                        marginBottom: "10px",
-                        fontWeight:
-                            selectedChannel?._id === channel._id
-                                ? "bold"
-                                : "normal",
+                    className="add-channel-button"
+                    onClick={() => {
+                        console.log("PLUS CLICKED");
+                        console.log(onCreateChannel);
+
+                        if (onCreateChannel) {
+                            onCreateChannel();
+                        }
                     }}
                 >
-                    # {channel.name}
+                    +
                 </button>
-            ))}
-        </div>
+            </div>
+
+            <div className="channel-list">
+                {channels.map((channel) => (
+                    <button
+                        key={channel._id}
+                        className={`channel-button ${selectedChannel?._id === channel._id
+                                ? "active"
+                                : ""
+                            }`}
+                        onClick={() => onSelectChannel(channel)}
+                    >
+                        # {channel.name}
+                    </button>
+                ))}
+            </div>
+        </aside>
     );
 }
 
