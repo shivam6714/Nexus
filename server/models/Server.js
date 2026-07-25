@@ -17,6 +17,11 @@ const serverSchema = new mongoose.Schema(
             type: String,
             default: "",
         },
+        inviteCode: {
+            type: String,
+            required: true,
+            unique: true,
+        },
 
         owner: {
             type: mongoose.Schema.Types.ObjectId,

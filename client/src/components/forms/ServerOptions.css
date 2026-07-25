@@ -1,0 +1,45 @@
+.server-options {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 340px;
+}
+
+.server-options h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.server-options p {
+    margin: 0;
+    color: #777;
+    font-size: 14px;
+}
+
+.server-option-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background 0.2s;
+}
+
+.server-option-btn.primary {
+    background: #5865f2;
+    color: white;
+}
+
+.server-option-btn.primary:hover {
+    background: #4752c4;
+}
+
+.server-option-btn.secondary {
+    background: #ececec;
+    color: #222;
+}
+
+.server-option-btn.secondary:hover {
+    background: #dddddd;
+}

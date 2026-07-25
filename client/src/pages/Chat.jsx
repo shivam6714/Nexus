@@ -4,11 +4,11 @@ import CreateServerForm from "../components/forms/CreateServerForm";
 import axios from "axios";
 import { createServer } from "../services/serverService";
 import socket from "../socket/socket";
-
+import JoinServerForm from "../components/forms/JoinServerForm";
 import ServerSidebar from "../components/sidebar/ServerSidebar";
 import ChannelSidebar from "../components/sidebar/ChannelSidebar";
 import CreateChannelForm from "../components/forms/CreateChannelForm";
-
+import ServerOptions from "../components/forms/ServerOptions";
 import MainLayout from "../components/layout/MainLayout";
 import ChatArea from "../components/layout/ChatArea";
 import TopBar from "../components/layout/TopBar";
@@ -16,6 +16,7 @@ import MembersSidebar from "../components/layout/MembersSidebar";
 import MessageInput from "../components/layout/MessageInput";
 import { createChannel } from "../services/channelService";
 import MessageList from "../components/message/MessageList";
+import { joinServer } from "../services/joinServerService";
 
 import "../styles/layout.css";
 
@@ -29,16 +30,8 @@ function Chat() {
     const [channels, setChannels] = useState([]);
     const [selectedChannel, setSelectedChannel] = useState(null);
 
-    const [showCreateServer, setShowCreateServer] = useState(false);
+    const [activeModal, setActiveModal] = useState(null);
     const [showCreateChannel, setShowCreateChannel] = useState(false);
-
-    useEffect(() => {
-        console.log("showCreateChannel:", showCreateChannel);
-    }, [showCreateChannel]);
-
-    useEffect(() => {
-        console.log("Selected Channel:", selectedChannel);
-    }, [selectedChannel]);
 
     // Fetch servers
     useEffect(() => {
@@ -199,24 +192,40 @@ function Chat() {
 
             setServers((prev) => [...prev, data.server]);
             setSelectedServer(data.server);
-            setShowCreateServer(false);
+            setActiveModal(null);
         } catch (error) {
             console.error(error);
             alert("Failed to create server");
+        }
+    };
+    const handleJoinServer = async ({ inviteCode }) => {
+        try {
+            const data = await joinServer(inviteCode);
+
+            setServers((prev) => [...prev, data.server]);
+            setSelectedServer(data.server);
+
+            setActiveModal(null);
+        } catch (error) {
+            console.error("Join server error:", error);
+
+            alert(
+                error.response?.data?.message || "Failed to join server"
+            );
         }
     };
 
     const handleCreateChannel = async (channelData) => {
 
         try {
-            console.log("Calling createChannel service...");
+
 
             const data = await createChannel({
                 ...channelData,
                 serverId: selectedServer._id,
             });
 
-            
+
 
             setChannels((prev) => [...prev, data.channel]);
             setSelectedChannel(data.channel);
@@ -224,6 +233,7 @@ function Chat() {
         } catch (error) {
             console.error("Create channel error:", error);
         }
+
     };
 
     return (
@@ -233,7 +243,7 @@ function Chat() {
                     servers={servers}
                     selectedServer={selectedServer}
                     onSelectServer={setSelectedServer}
-                    onCreateServer={() => setShowCreateServer(true)}
+                    onCreateServer={() => setActiveModal("options")}
                 />
 
                 <ChannelSidebar
@@ -262,11 +272,26 @@ function Chat() {
             </MainLayout>
 
             <Modal
-                isOpen={showCreateServer}
-                title="Create Server"
-                onClose={() => setShowCreateServer(false)}
+                isOpen={activeModal !== null}
+                onClose={() => setActiveModal(null)}
             >
-                <CreateServerForm onSubmit={handleCreateServer} />
+                {activeModal === "options" && (
+                    <ServerOptions
+                        onCreate={() => setActiveModal("create")}
+                        onJoin={() => setActiveModal("join")}
+                    />
+                )}
+
+                {activeModal === "create" && (
+                    <CreateServerForm
+                        onSubmit={handleCreateServer}
+                    />
+                )}
+                {activeModal === "join" && (
+                    <JoinServerForm
+                        onSubmit={handleJoinServer}
+                    />
+                )}
             </Modal>
 
             <Modal
