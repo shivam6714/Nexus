@@ -1,4 +1,7 @@
 import "./ServerSidebar.css";
+import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../../services/authService";
+import socket from "../../socket/socket";
 
 function ServerSidebar({
     servers,
@@ -6,6 +9,15 @@ function ServerSidebar({
     onSelectServer,
     onCreateServer,
 }) {
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        socket.disconnect();
+
+        logoutUser();
+
+        navigate("/login");
+    };
     return (
         <aside className="server-sidebar">
             <div className="server-logo">N</div>
@@ -34,6 +46,14 @@ function ServerSidebar({
                     +
                 </button>
             </div>
+
+            <button
+                className="logout-button"
+                onClick={handleLogout}
+            >
+                Logout
+            </button>
+
         </aside>
     );
 }

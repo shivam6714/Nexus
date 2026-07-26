@@ -1,62 +1,39 @@
-import axios from "axios";
-import socket from "../socket/socket";
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import LoginForm from "../components/forms/LoginForm";
+import { loginUser } from "../services/authService";
+import "../styles/auth.css";
 
 function Login() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const navigate = useNavigate();
 
-    const handleLogin = async () => {
+    const handleLogin = async (credentials) => {
         try {
-            const response = await axios.post(
-                "http://localhost:5000/api/auth/login",
-                {
-                    email,
-                    password,
-                }
-            );
+            const data = await loginUser(credentials);
 
-            localStorage.setItem("token", response.data.token);
-            localStorage.setItem("user", JSON.stringify(response.data.user));
+            localStorage.setItem("token", data.token);
 
-            socket.auth = {
-                token: response.data.token,
-            };
 
-            socket.connect();
-
-            console.log("Login Successful!");
-
+            navigate("/chat");
         } catch (error) {
-            console.log(error.response.data);
+            console.error("Login failed:", error);
+
+            alert(
+                error.response?.data?.message ||
+                "Login failed"
+            );
         }
     };
 
     return (
-        <div>
-            <h1>Nexus Login</h1>
+        <div className="auth-page">
+            <div className="auth-card">
+                <h1 className="auth-title">Welcome Back</h1>
+                <p className="auth-subtitle">
+                    Login to continue to Nexus
+                </p>
 
-            <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-            />
-
-            <br /><br />
-
-            <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-            />
-
-            <br /><br />
-
-            <button onClick={handleLogin}>
-                Login
-            </button>
+                <LoginForm onSubmit={handleLogin} />
+            </div>
         </div>
     );
 }

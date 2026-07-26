@@ -1,0 +1,29 @@
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #313338;
+    padding: 20px;
+}
+
+.auth-card {
+    background: #2b2d31;
+    padding: 40px;
+    border-radius: 12px;
+    width: 420px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+}
+
+.auth-title {
+    text-align: center;
+    color: white;
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: #b5bac1;
+    margin-bottom: 24px;
+    font-size: 14px;
+}
