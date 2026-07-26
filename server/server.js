@@ -3,7 +3,7 @@ const socketAuth = require("./socket/socketAuth");
 const http = require("http");
 const { Server } = require("socket.io");
 const registerSocketHandlers = require("./socket/socketHandler");
-
+const path = require("path");
 const app = require("./app");
 const connectDB = require("./config/db");
 

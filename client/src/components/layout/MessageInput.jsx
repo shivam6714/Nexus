@@ -1,19 +1,39 @@
+import { SendHorizontal } from "lucide-react";
+
 function MessageInput({
     message,
     setMessage,
     handleSend,
+    channel,
 }) {
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
+
     return (
         <div className="message-input">
-            <input
-                type="text"
-                placeholder="Type a message..."
+            <textarea
+                placeholder={`Message #${channel?.name || "general"}`}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                    }
+                }}
+                rows={1}
             />
 
-            <button onClick={handleSend}>
-                Send
+            <button
+                className="send-button"
+                onClick={handleSend}
+                type="button"
+            >
+                <SendHorizontal size={20} />
             </button>
         </div>
     );

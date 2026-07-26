@@ -1,0 +1,55 @@
+.members-sidebar {
+    width: 220px;
+    background: #2b2d31;
+    padding: 20px 16px;
+    overflow-y: auto;
+}
+
+.members-sidebar h3 {
+    color: white;
+    font-size: 22px;
+    margin-bottom: 20px;
+}
+
+.member-section {
+    margin-bottom: 24px;
+}
+
+.member-section-title {
+    color: #949ba4;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.member-divider {
+    height: 1px;
+    background: #3f4147;
+    margin: 20px 0;
+}
+
+.member-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 6px 0;
+
+    color: #dbdee1;
+    font-size: 15px;
+}
+
+.status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.status.online {
+    background: #23a55a;
+}
+
+.status.offline {
+    background: #ed4245;
+}

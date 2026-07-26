@@ -1,10 +1,23 @@
 const express = require("express");
-const protect = require("../middleware/authMiddleware")
-const{ register,login,getProfile } = require("../controllers/authController")
-const router =express.Router();
+const protect = require("../middleware/authMiddleware");
+const upload = require("../middleware/upload");
 
-router.post("/register",register);
-router.post("/login",login);
-router.get("/profile",protect,getProfile);
+const {
+    register,
+    login,
+    getProfile,
+    uploadAvatar,
+} = require("../controllers/authController");
+const router = express.Router();
 
-module.exports=router;
+router.post("/register", register);
+router.post("/login", login);
+router.get("/profile", protect, getProfile);
+router.put(
+    "/profile/avatar",
+    protect,
+    upload.single("avatar"),
+    uploadAvatar
+);
+
+module.exports = router;

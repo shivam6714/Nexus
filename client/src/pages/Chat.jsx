@@ -17,7 +17,7 @@ import MessageInput from "../components/layout/MessageInput";
 import { createChannel } from "../services/channelService";
 import MessageList from "../components/message/MessageList";
 import { joinServer } from "../services/joinServerService";
-
+import { getServerMembers } from "../services/memberService";
 import "../styles/layout.css";
 
 function Chat() {
@@ -29,7 +29,7 @@ function Chat() {
 
     const [channels, setChannels] = useState([]);
     const [selectedChannel, setSelectedChannel] = useState(null);
-
+    const [members, setMembers] = useState([]);
     const [activeModal, setActiveModal] = useState(null);
     const [showCreateChannel, setShowCreateChannel] = useState(false);
 
@@ -104,7 +104,28 @@ function Chat() {
 
         fetchChannels();
     }, [selectedServer]);
+    useEffect(() => {
+        if (!selectedServer) return;
 
+        const fetchMembers = async () => {
+            try {
+                const data = await getServerMembers(selectedServer._id);
+
+                setMembers(data.members);
+
+                console.log(
+                    `[Members] Loaded ${data.members.length} member(s)`
+                );
+            } catch (error) {
+                console.error(
+                    "[Members] Failed:",
+                    error.response?.data?.message || error.message
+                );
+            }
+        };
+
+        fetchMembers();
+    }, [selectedServer]);
     // Fetch messages whenever channel changes
     useEffect(() => {
         if (!selectedChannel) return;
@@ -171,15 +192,15 @@ function Chat() {
     }, [selectedChannel]);
 
     const handleSend = () => {
-        if (!message.trim()) return;
+        const trimmedMessage = message.trim();
+
+        if (!trimmedMessage) return;
         if (!selectedChannel) return;
 
-        console.log(
-            `[Message] Sending "${message}" to ${selectedChannel.name}`
-        );
+        console.log("Sending:", trimmedMessage);
 
         socket.emit("send-message", {
-            content: message,
+            content: trimmedMessage,
             channelId: selectedChannel._id,
         });
 
@@ -265,10 +286,11 @@ function Chat() {
                         message={message}
                         setMessage={setMessage}
                         handleSend={handleSend}
+                        channel={selectedChannel}
                     />
                 </ChatArea>
 
-                <MembersSidebar />
+                <MembersSidebar members={members} />
             </MainLayout>
 
             <Modal

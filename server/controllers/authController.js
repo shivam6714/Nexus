@@ -36,7 +36,7 @@ const register = async (req, res) => {
             message: "User registered successfully",
             token,
             user: {
-                id: user._id,
+                _id: user._id,
                 username: user.username,
                 email: user.email,
                 avatar: user.avatar,
@@ -92,7 +92,7 @@ const login = async (req, res) => {
             message: "login successful",
             token,
             user: {
-                id: user._id,
+                _id: user._id,
                 username: user.username,
                 email: user.email,
                 avatar: user.avatar,
@@ -113,8 +113,45 @@ const getProfile = async (req, res) => {
         user: req.user,
     });
 };
+const uploadAvatar = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "Please upload an image",
+            });
+        }
+
+        const avatarPath = `/uploads/avatars/${req.file.filename}`;
+
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            {
+                avatar: avatarPath,
+            },
+            {
+                new: true,
+            }
+        ).select("-password");
+
+        res.status(200).json({
+            success: true,
+            message: "Avatar updated successfully",
+            user,
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+        });
+    }
+};
 module.exports = {
     register,
     login,
     getProfile,
+    uploadAvatar,
 };

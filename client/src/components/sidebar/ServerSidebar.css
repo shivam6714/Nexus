@@ -61,6 +61,7 @@
 .server-button:hover {
     background: #5865f2;
     border-radius: 16px;
+    transform: scale(1.05);
 }
 
 .server-button.active {
@@ -104,4 +105,51 @@
     background: #ed4245;
     color: white;
     border-radius: 16px;
+}
+
+.server-sidebar {
+    display: flex;
+    flex-direction: column;
+}
+
+.server-list {
+    flex: 1;
+}
+
+.server-bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 16px;
+}
+
+.server-logo {
+    width: 56px;
+    height: 56px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 12px;
+}
+.server-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+    
+}
+.server-icon-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+.server-button.owner {
+    cursor: pointer;
 }

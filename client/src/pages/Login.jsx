@@ -11,7 +11,7 @@ function Login() {
             const data = await loginUser(credentials);
 
             localStorage.setItem("token", data.token);
-
+            localStorage.setItem("user", JSON.stringify(data.user));
 
             navigate("/chat");
         } catch (error) {
