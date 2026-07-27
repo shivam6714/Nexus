@@ -1,25 +1,15 @@
 import "./MembersSidebar.css";
-function MembersSidebar({ members }) {
-    const currentUser = JSON.parse(localStorage.getItem("user"));
 
-    console.log("Current User:", currentUser);
-
-    members.forEach((member) => {
-        console.log(
-            "Comparing:",
-            member._id,
-            "===",
-            currentUser?._id,
-            member._id === currentUser?._id
-        );
-    });
-
-    const onlineMembers = members.filter(
-        (member) => member._id === currentUser?._id
+function MembersSidebar({
+    members,
+    onlineUsers,
+}) {
+    const onlineMembers = members.filter((member) =>
+        onlineUsers.includes(member._id)
     );
 
     const offlineMembers = members.filter(
-        (member) => member._id !== currentUser?._id
+        (member) => !onlineUsers.includes(member._id)
     );
 
     return (

@@ -30,6 +30,7 @@ function Chat() {
     const [channels, setChannels] = useState([]);
     const [selectedChannel, setSelectedChannel] = useState(null);
     const [members, setMembers] = useState([]);
+    const [onlineUsers, setOnlineUsers] = useState([]);
     const [activeModal, setActiveModal] = useState(null);
     const [showCreateChannel, setShowCreateChannel] = useState(false);
 
@@ -174,10 +175,16 @@ function Chat() {
 
             setMessages((prev) => [...prev, message]);
         });
+        socket.on("online-users", (users) => {
+            console.log("[Presence] Online users:", users);
+
+            setOnlineUsers(users);
+        });
 
         return () => {
             socket.off("connect");
             socket.off("receive-message");
+            socket.off("online-users");
             socket.disconnect();
         };
     }, []);
@@ -290,7 +297,10 @@ function Chat() {
                     />
                 </ChatArea>
 
-                <MembersSidebar members={members} />
+                <MembersSidebar
+                    members={members}
+                    onlineUsers={onlineUsers}
+                />
             </MainLayout>
 
             <Modal
