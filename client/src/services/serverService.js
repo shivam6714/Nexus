@@ -26,3 +26,23 @@ export const uploadServerIcon = async (serverId, file) => {
 
     return response.data;
 };
+
+export const getServerInfo = async (serverId) => {
+    const response = await api.get(`/server/${serverId}/info`);
+    return response.data;
+};
+
+export const leaveServer = async (serverId) => {
+    const response = await api.post(`/server/${serverId}/leave`);
+    return response.data;
+};
+
+export const transferAndLeaveServer = async (serverId, newOwnerId) => {
+    const response = await api.post(`/server/${serverId}/transfer-leave`, { newOwnerId });
+    return response.data;
+};
+
+export const deleteServer = async (serverId) => {
+    const response = await api.delete(`/server/${serverId}`);
+    return response.data;
+};

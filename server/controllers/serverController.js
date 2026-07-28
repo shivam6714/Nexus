@@ -212,10 +212,176 @@ const uploadServerIcon = async (req, res) => {
     }
 };
 
+const getServerInfo = async (req, res) => {
+    try {
+        const { serverId } = req.params;
+
+        const server = await Server.findById(serverId);
+
+        if (!server) {
+            return res.status(404).json({
+                success: false,
+                message: "Server not found",
+            });
+        }
+
+        const isMember = server.members.some(
+            (memberId) => memberId.toString() === req.user._id.toString()
+        );
+
+        if (!isMember) {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            server: {
+                name: server.name,
+                icon: server.icon,
+                inviteCode: server.inviteCode,
+            }
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+        });
+    }
+};
+
+const leaveServer = async (req, res) => {
+    try {
+        const { serverId } = req.params;
+
+        const server = await Server.findById(serverId);
+
+        if (!server) {
+            return res.status(404).json({
+                success: false,
+                message: "Server not found",
+            });
+        }
+
+        const isMember = server.members.some(
+            (memberId) => memberId.toString() === req.user._id.toString()
+        );
+
+        if (!isMember) {
+            return res.status(403).json({
+                success: false,
+                message: "You are not a member of this server",
+            });
+        }
+
+        if (server.owner.toString() === req.user._id.toString()) {
+            return res.status(400).json({
+                success: false,
+                message: "Server owner cannot leave the server. You must transfer ownership first.",
+            });
+        }
+
+        server.members = server.members.filter(
+            (memberId) => memberId.toString() !== req.user._id.toString()
+        );
+
+        await server.save();
+
+        req.app.get("io").to(`server-${server._id}`).emit("server-member-left", {
+            userId: req.user._id,
+            serverId: server._id
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Successfully left the server",
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+        });
+    }
+};
+
+const transferAndLeave = async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const { newOwnerId } = req.body;
+
+        const server = await Server.findById(serverId);
+        if (!server) {
+            return res.status(404).json({ success: false, message: "Server not found" });
+        }
+
+        if (server.owner.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: "Only the server owner can transfer ownership" });
+        }
+
+        if (!server.members.some(memberId => memberId.toString() === newOwnerId)) {
+            return res.status(400).json({ success: false, message: "Selected user is not a member of this server" });
+        }
+
+        server.owner = newOwnerId;
+        server.members = server.members.filter(memberId => memberId.toString() !== req.user._id.toString());
+
+        await server.save();
+
+        req.app.get("io").to(`server-${server._id}`).emit("server-owner-changed", {
+            serverId: server._id,
+            newOwnerId
+        });
+
+        req.app.get("io").to(`server-${server._id}`).emit("server-member-left", {
+            serverId: server._id,
+            userId: req.user._id
+        });
+
+        res.status(200).json({ success: true, message: "Ownership transferred and left server successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
+const deleteServer = async (req, res) => {
+    try {
+        const { serverId } = req.params;
+
+        const server = await Server.findById(serverId);
+        if (!server) {
+            return res.status(404).json({ success: false, message: "Server not found" });
+        }
+
+        if (server.owner.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: "Only the server owner can delete the server" });
+        }
+
+        await Server.findByIdAndDelete(serverId);
+
+        req.app.get("io").to(`server-${serverId}`).emit("server-deleted", {
+            serverId
+        });
+
+        res.status(200).json({ success: true, message: "Server deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
 module.exports = {
     createServer,
     getMyServers,
     joinServer,
     getServerMembers,
     uploadServerIcon,
+    getServerInfo,
+    leaveServer,
+    transferAndLeave,
+    deleteServer,
 };

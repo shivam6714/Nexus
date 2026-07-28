@@ -10,6 +10,10 @@ const {
     joinServer,
     getServerMembers,
     uploadServerIcon,
+    getServerInfo,
+    leaveServer,
+    transferAndLeave,
+    deleteServer,
 } = require("../controllers/serverController");
 router.get("/", protect, getMyServers);
 router.post("/create", protect, createServer);
@@ -18,6 +22,26 @@ router.get(
     "/:serverId/members",
     protect,
     getServerMembers
+);
+router.get(
+    "/:serverId/info",
+    protect,
+    getServerInfo
+);
+router.post(
+    "/:serverId/leave",
+    protect,
+    leaveServer
+);
+router.post(
+    "/:serverId/transfer-leave",
+    protect,
+    transferAndLeave
+);
+router.delete(
+    "/:serverId",
+    protect,
+    deleteServer
 );
 router.put(
     "/:serverId/icon",

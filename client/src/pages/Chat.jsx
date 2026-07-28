@@ -2,13 +2,16 @@ import { useEffect, useState, useRef } from "react";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
 import axios from "axios";
-import { createServer } from "../services/serverService";
+import { createServer, getServerInfo, leaveServer, transferAndLeaveServer, deleteServer } from "../services/serverService";
 import socket from "../socket/socket";
 import JoinServerForm from "../components/forms/JoinServerForm";
 import ServerSidebar from "../components/sidebar/ServerSidebar";
 import ChannelSidebar from "../components/sidebar/ChannelSidebar";
 import CreateChannelForm from "../components/forms/CreateChannelForm";
 import ServerOptions from "../components/forms/ServerOptions";
+import ServerInfoModal from "../components/forms/ServerInfoModal";
+import ServerActionsModal from "../components/forms/ServerActionsModal";
+import TransferOwnershipModal from "../components/forms/TransferOwnershipModal";
 import MainLayout from "../components/layout/MainLayout";
 import ChatArea from "../components/layout/ChatArea";
 import TopBar from "../components/layout/TopBar";
@@ -37,6 +40,7 @@ function Chat() {
     const [showCreateChannel, setShowCreateChannel] = useState(false);
     const [selectedConversation, setSelectedConversation] = useState(null);
     const [dmUser, setDmUser] = useState(null);
+    const [serverInfo, setServerInfo] = useState(null);
 
     const [typingUsers, setTypingUsers] = useState([]);
     const typingTimeoutRef = useRef(null);
@@ -282,6 +286,22 @@ function Chat() {
             }
         };
 
+        const handleServerMemberLeft = (payload) => {
+            const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+            if (currentUser && currentUser._id === payload.userId) return;
+            
+            if (selectedServer && payload.serverId === selectedServer._id) {
+                setMembers((prev) => prev.filter(m => m._id !== payload.userId));
+            }
+        };
+
+        const handleServerOwnerChanged = (payload) => {
+            setServers(prev => prev.map(s => s._id === payload.serverId ? { ...s, owner: payload.newOwnerId } : s));
+            if (selectedServer && payload.serverId === selectedServer._id) {
+                setSelectedServer(prev => ({ ...prev, owner: payload.newOwnerId }));
+            }
+        };
+
         const handleTypingStart = (payload) => {
             if (
                 (selectedConversation && payload.conversationId === selectedConversation._id) ||
@@ -307,6 +327,8 @@ function Chat() {
         socket.on("receive-dm", handleReceiveDM);
         socket.on("channel-created", handleChannelCreated);
         socket.on("server-member-joined", handleServerMemberJoined);
+        socket.on("server-member-left", handleServerMemberLeft);
+        socket.on("server-owner-changed", handleServerOwnerChanged);
         socket.on("typing-start", handleTypingStart);
         socket.on("typing-stop", handleTypingStop);
 
@@ -315,6 +337,8 @@ function Chat() {
             socket.off("receive-dm", handleReceiveDM);
             socket.off("channel-created", handleChannelCreated);
             socket.off("server-member-joined", handleServerMemberJoined);
+            socket.off("server-member-left", handleServerMemberLeft);
+            socket.off("server-owner-changed", handleServerOwnerChanged);
             socket.off("typing-start", handleTypingStart);
             socket.off("typing-stop", handleTypingStop);
         };
@@ -434,6 +458,129 @@ function Chat() {
             alert("Failed to create server");
         }
     };
+
+    const handleServerInfo = async () => {
+        if (!selectedServer) return;
+        try {
+            const data = await getServerInfo(selectedServer._id);
+            setServerInfo(data.server);
+            setActiveModal("serverInfo");
+        } catch (error) {
+            console.error(error);
+            alert("Failed to fetch server info");
+        }
+    };
+
+    const handleCopyInviteCode = async () => {
+        if (!serverInfo?.inviteCode) return;
+        try {
+            await navigator.clipboard.writeText(serverInfo.inviteCode);
+            alert("Invite code copied to clipboard!");
+        } catch (error) {
+            console.error("Failed to copy", error);
+            alert("Failed to copy invite code");
+        }
+    };
+
+    const confirmLeaveServer = async () => {
+        if (!selectedServer) return;
+        try {
+            await leaveServer(selectedServer._id);
+            
+            if (socket.connected) {
+                socket.emit("leave-server-room", selectedServer._id);
+            }
+            
+            const remainingServers = servers.filter(s => s._id !== selectedServer._id);
+            setServers(remainingServers);
+            
+            if (remainingServers.length > 0) {
+                setSelectedServer(remainingServers[0]);
+            } else {
+                setSelectedServer(null);
+                setSelectedChannel(null);
+                setSelectedConversation(null);
+                setDmUser(null);
+                setChannels([]);
+                setMessages([]);
+                setMembers([]);
+                setTypingUsers([]);
+            }
+            
+            setActiveModal(null);
+        } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.message || "Failed to leave server");
+            setActiveModal(null);
+        }
+    };
+
+    const handleDeleteServer = async () => {
+        if (!selectedServer) return;
+        try {
+            await deleteServer(selectedServer._id);
+            
+            if (socket.connected) {
+                socket.emit("leave-server-room", selectedServer._id);
+            }
+            
+            const remainingServers = servers.filter(s => s._id !== selectedServer._id);
+            setServers(remainingServers);
+            
+            if (remainingServers.length > 0) {
+                setSelectedServer(remainingServers[0]);
+            } else {
+                setSelectedServer(null);
+                setSelectedChannel(null);
+                setSelectedConversation(null);
+                setDmUser(null);
+                setChannels([]);
+                setMessages([]);
+                setMembers([]);
+                setTypingUsers([]);
+            }
+            
+            setActiveModal(null);
+        } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.message || "Failed to delete server");
+            setActiveModal(null);
+        }
+    };
+
+    const handleTransferOwnership = async (newOwnerId) => {
+        if (!selectedServer) return;
+        try {
+            await transferAndLeaveServer(selectedServer._id, newOwnerId);
+            
+            if (socket.connected) {
+                socket.emit("leave-server-room", selectedServer._id);
+            }
+            
+            const remainingServers = servers.filter(s => s._id !== selectedServer._id);
+            setServers(remainingServers);
+            
+            if (remainingServers.length > 0) {
+                setSelectedServer(remainingServers[0]);
+            } else {
+                setSelectedServer(null);
+                setSelectedChannel(null);
+                setSelectedConversation(null);
+                setDmUser(null);
+                setChannels([]);
+                setMessages([]);
+                setMembers([]);
+                setTypingUsers([]);
+            }
+            
+            setActiveModal(null);
+        } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.message || "Failed to transfer ownership");
+            setActiveModal(null);
+        }
+    };
+
     const handleJoinServer = async ({ inviteCode }) => {
         try {
             const data = await joinServer(inviteCode);
@@ -495,7 +642,11 @@ function Chat() {
                             DM with {dmUser ? dmUser.username : "User"}
                         </div>
                     ) : (
-                        <TopBar channel={selectedChannel} />
+                        <TopBar 
+                            channel={selectedChannel} 
+                            server={selectedServer}
+                            onOpenServerActions={() => setActiveModal("serverActions")}
+                        />
                     )}
 
                     <MessageList messages={messages} />
@@ -535,6 +686,24 @@ function Chat() {
                         onJoin={() => setActiveModal("join")}
                     />
                 )}
+                {activeModal === "serverActions" && (
+                    <ServerActionsModal
+                        onServerInfo={handleServerInfo}
+                        onLeaveServer={() => {
+                            const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+                            if (selectedServer?.owner === currentUser._id) {
+                                if (members.length === 1) {
+                                    setActiveModal("deleteServer");
+                                } else {
+                                    setActiveModal("transferOwnership");
+                                }
+                            } else {
+                                setActiveModal("leaveServer");
+                            }
+                        }}
+                        onClose={() => setActiveModal(null)}
+                    />
+                )}
 
                 {activeModal === "create" && (
                     <CreateServerForm
@@ -544,6 +713,43 @@ function Chat() {
                 {activeModal === "join" && (
                     <JoinServerForm
                         onSubmit={handleJoinServer}
+                    />
+                )}
+                {activeModal === "serverInfo" && (
+                    <ServerInfoModal
+                        serverInfo={serverInfo}
+                        onCopy={handleCopyInviteCode}
+                        onClose={() => setActiveModal(null)}
+                    />
+                )}
+                {activeModal === "leaveServer" && (
+                    <div style={{ padding: "20px", color: "white" }}>
+                        <h2>Are you sure you want to leave this server?</h2>
+                        <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+                            <button onClick={() => setActiveModal(null)} className="server-option-btn secondary">Cancel</button>
+                            <button onClick={confirmLeaveServer} className="server-option-btn danger" style={{ backgroundColor: "#ed4245" }}>Leave Server</button>
+                        </div>
+                    </div>
+                )}
+                {activeModal === "deleteServer" && (
+                    <div style={{ padding: "20px", color: "white" }}>
+                        <h2>Delete Server</h2>
+                        <p style={{ marginTop: "10px", color: "#b9bbbe", lineHeight: "1.5" }}>
+                            You are the last member of this server.<br/>
+                            Leaving will permanently delete the server.
+                        </p>
+                        <div style={{ display: "flex", gap: "10px", marginTop: "20px", justifyContent: "flex-end" }}>
+                            <button onClick={() => setActiveModal(null)} className="server-option-btn secondary" style={{ margin: 0, width: "auto", padding: "10px 24px" }}>Cancel</button>
+                            <button onClick={handleDeleteServer} className="server-option-btn danger" style={{ backgroundColor: "#ed4245", margin: 0, width: "auto", padding: "10px 24px" }}>Delete Server</button>
+                        </div>
+                    </div>
+                )}
+                {activeModal === "transferOwnership" && (
+                    <TransferOwnershipModal
+                        members={members}
+                        currentOwnerId={selectedServer?.owner}
+                        onTransfer={handleTransferOwnership}
+                        onClose={() => setActiveModal(null)}
                     />
                 )}
             </Modal>

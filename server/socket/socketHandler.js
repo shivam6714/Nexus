@@ -96,6 +96,11 @@ const registerSocketHandlers = (io) => {
             console.log(`${socket.user.username} joined server room server-${serverId}`);
         });
 
+        socket.on("leave-server-room", (serverId) => {
+            socket.leave(`server-${serverId}`);
+            console.log(`${socket.user.username} left server room server-${serverId}`);
+        });
+
         socket.on("join-dm-room", async (conversationId) => {
             try {
                 // Ensure the user is actually a participant before joining
