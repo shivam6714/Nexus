@@ -5,6 +5,7 @@ function MessageInput({
     setMessage,
     handleSend,
     channel,
+    placeholder
 }) {
     const handleKeyDown = (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -16,7 +17,7 @@ function MessageInput({
     return (
         <div className="message-input">
             <textarea
-                placeholder={`Message #${channel?.name || "general"}`}
+                placeholder={placeholder || `Message #${channel?.name || "general"}`}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => {

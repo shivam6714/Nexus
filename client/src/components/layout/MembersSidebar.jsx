@@ -3,6 +3,8 @@ import "./MembersSidebar.css";
 function MembersSidebar({
     members,
     onlineUsers,
+    onStartDM,
+    selectedMemberId,
 }) {
     const onlineMembers = members.filter((member) =>
         onlineUsers.includes(member._id)
@@ -22,7 +24,8 @@ function MembersSidebar({
                 {onlineMembers.map((member) => (
                     <div
                         key={member._id}
-                        className="member-item"
+                        className={`member-item ${member._id === selectedMemberId ? 'active' : ''}`}
+                        onClick={() => onStartDM(member._id)}
                     >
                         🟢 {member.username}
                     </div>
@@ -35,7 +38,8 @@ function MembersSidebar({
                 {offlineMembers.map((member) => (
                     <div
                         key={member._id}
-                        className="member-item"
+                        className={`member-item ${member._id === selectedMemberId ? 'active' : ''}`}
+                        onClick={() => onStartDM(member._id)}
                     >
                         🔴 {member.username}
                     </div>

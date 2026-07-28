@@ -41,6 +41,8 @@ const createChannel = async (req, res) => {
 
         await server.save();
 
+        req.app.get("io").to(`server-${serverId}`).emit("channel-created", channel);
+
         res.status(201).json({
             success: true,
             message: "Channel created successfully",

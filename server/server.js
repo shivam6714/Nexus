@@ -20,6 +20,8 @@ const io = new Server(server, {
 
 io.use(socketAuth);
 
+app.set("io", io);
+
 registerSocketHandlers(io);
 
 const startServer = async () => {

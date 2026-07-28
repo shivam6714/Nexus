@@ -15,7 +15,12 @@ const messageSchema = new mongoose.Schema(
         channel: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Channel",
-            required: true,
+            default: null,
+        },
+        conversation: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Conversation",
+            default: null,
         },
         edited: {
             type: Boolean,

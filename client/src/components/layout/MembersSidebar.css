@@ -34,10 +34,25 @@
     align-items: center;
     gap: 10px;
 
-    padding: 6px 0;
+    padding: 6px 8px;
+    border-left: 4px solid transparent;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    cursor: pointer;
 
     color: #dbdee1;
     font-size: 15px;
+}
+
+.member-item:hover:not(.active) {
+    background-color: #35373c;
+}
+
+.member-item.active {
+    background-color: #40444b;
+    border-left: 4px solid #5865F2;
+    font-weight: bold;
+    color: #ffffff;
 }
 
 .status {

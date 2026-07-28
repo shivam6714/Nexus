@@ -105,6 +105,11 @@ const joinServer = async (req, res) => {
 
         await server.save();
 
+        req.app.get("io").to(`server-${server._id}`).emit("server-member-joined", {
+            user: req.user,
+            serverId: server._id
+        });
+
         res.status(200).json({
             success: true,
             message: "Joined server successfully",
