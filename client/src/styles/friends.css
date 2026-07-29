@@ -1,0 +1,132 @@
+.friends-page-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #313338;
+    color: #dbdee1;
+    font-family: 'Inter', sans-serif;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.friends-header {
+    margin-bottom: 24px;
+    font-size: 24px;
+    font-weight: 600;
+    color: #f2f3f5;
+}
+
+.friends-section {
+    margin-bottom: 32px;
+}
+
+.friends-section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #949ba4;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+
+.search-bar-container {
+    display: flex;
+    background-color: #1e1f22;
+    border-radius: 4px;
+    padding: 8px 12px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.search-bar-input {
+    background: transparent;
+    border: none;
+    color: #dbdee1;
+    font-size: 16px;
+    flex: 1;
+    outline: none;
+}
+
+.search-bar-button {
+    background-color: #5865f2;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.search-bar-button:hover {
+    background-color: #4752c4;
+}
+
+.card-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.card-container:hover {
+    background-color: #2b2d31;
+}
+
+.card-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.card-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #5865f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+}
+
+.card-username {
+    font-weight: 500;
+    color: #f2f3f5;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.action-button {
+    background-color: #2b2d31;
+    border: none;
+    color: #dbdee1;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-button:hover {
+    background-color: #313338;
+}
+
+.action-accept {
+    color: #23a559;
+}
+
+.action-reject {
+    color: #da373c;
+}
