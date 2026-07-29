@@ -1,4 +1,11 @@
 const friendService = require("../services/friendService");
+const { 
+    emitFriendRequest, 
+    emitFriendAccepted, 
+    emitFriendRejected, 
+    emitFriendCancelled, 
+    emitFriendRemoved 
+} = require("../socket/friendEvents");
 
 const sendFriendRequest = async (req, res) => {
     try {
@@ -13,6 +20,8 @@ const sendFriendRequest = async (req, res) => {
         }
 
         const request = await friendService.sendFriendRequest(senderId, receiverId);
+
+        emitFriendRequest(req.app.get("io"), receiverId, request);
 
         res.status(201).json({
             success: true,
@@ -52,6 +61,8 @@ const acceptFriendRequest = async (req, res) => {
 
         const request = await friendService.acceptFriendRequest(requestId, userId);
 
+        emitFriendAccepted(req.app.get("io"), request.sender, request);
+
         res.status(200).json({
             success: true,
             message: "Friend request accepted successfully.",
@@ -72,6 +83,8 @@ const rejectFriendRequest = async (req, res) => {
 
         const request = await friendService.rejectFriendRequest(requestId, userId);
 
+        emitFriendRejected(req.app.get("io"), request.sender, request);
+
         res.status(200).json({
             success: true,
             message: "Friend request rejected successfully.",
@@ -90,7 +103,9 @@ const cancelFriendRequest = async (req, res) => {
         const { requestId } = req.params;
         const userId = req.user._id;
 
-        await friendService.cancelFriendRequest(requestId, userId);
+        const { request } = await friendService.cancelFriendRequest(requestId, userId);
+
+        emitFriendCancelled(req.app.get("io"), request.receiver, request);
 
         res.status(200).json({
             success: true,
@@ -110,6 +125,8 @@ const removeFriend = async (req, res) => {
         const userId = req.user._id;
 
         await friendService.removeFriend(userId, friendId);
+
+        emitFriendRemoved(req.app.get("io"), friendId, { userId, friendId });
 
         res.status(200).json({
             success: true,

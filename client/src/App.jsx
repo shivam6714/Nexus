@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import Chat from "./pages/Chat";
+import FriendsPage from "./pages/FriendsPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PublicRoute from "./components/common/PublicRoute";
@@ -33,6 +34,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Chat />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/friends"
+          element={
+            <ProtectedRoute>
+              <FriendsPage />
             </ProtectedRoute>
           }
         />

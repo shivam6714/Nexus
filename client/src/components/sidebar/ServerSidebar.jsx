@@ -1,5 +1,5 @@
 import "./ServerSidebar.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { logoutUser } from "../../services/authService";
 import socket from "../../socket/socket";
 import UserPanel from "./UserPanel";
@@ -12,7 +12,11 @@ function ServerSidebar({
     onCreateServer,
 }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const fileInputRef = useRef(null);
+    
+    const isChat = location.pathname.startsWith("/chat");
+    const isFriends = location.pathname.startsWith("/friends");
 
     const currentUser = JSON.parse(localStorage.getItem("user"));
 
@@ -54,6 +58,24 @@ function ServerSidebar({
                     src="/logos/nexus-logo.png"
                     alt="Nexus"
                 />
+            </div>
+
+            <div className="nav-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                <button 
+                    className={`server-button ${isChat ? "active" : ""}`}
+                    onClick={() => navigate("/chat")}
+                    title="Chat"
+                >
+                    💬
+                </button>
+                <button 
+                    className={`server-button ${isFriends ? "active" : ""}`}
+                    onClick={() => navigate("/friends")}
+                    title="Friends"
+                >
+                    👥
+                </button>
+                <div style={{ width: '32px', height: '2px', backgroundColor: '#3f4147', borderRadius: '1px', marginTop: '4px' }}></div>
             </div>
 
             <div className="server-list">

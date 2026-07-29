@@ -1,6 +1,13 @@
 const User = require("../models/User");
 const FriendRequest = require("../models/FriendRequest");
 
+const populateRequest = async (request) => {
+    return await request.populate([
+        { path: "sender", select: "username avatar" },
+        { path: "receiver", select: "username avatar" }
+    ]);
+};
+
 const sendFriendRequest = async (senderId, receiverId) => {
     // 1. Sender and receiver cannot be the same user
     if (senderId.toString() === receiverId.toString()) {
@@ -39,7 +46,7 @@ const sendFriendRequest = async (senderId, receiverId) => {
     });
 
     // 6. Return the created request
-    return newRequest;
+    return await populateRequest(newRequest);
 };
 
 const acceptFriendRequest = async (requestId, userId) => {
@@ -74,7 +81,7 @@ const acceptFriendRequest = async (requestId, userId) => {
     await request.save();
 
     // 8. Return the updated request
-    return request;
+    return await populateRequest(request);
 };
 
 const rejectFriendRequest = async (requestId, userId) => {
@@ -99,7 +106,7 @@ const rejectFriendRequest = async (requestId, userId) => {
     await request.save();
 
     // 7. Return the updated request
-    return request;
+    return await populateRequest(request);
 };
 
 const cancelFriendRequest = async (requestId, userId) => {
@@ -119,11 +126,14 @@ const cancelFriendRequest = async (requestId, userId) => {
         throw new Error("You are not authorized to cancel this request.");
     }
 
-    // 5. Delete the FriendRequest document
+    // 5. Populate before deleting
+    await populateRequest(request);
+    
+    // 6. Delete the FriendRequest document
     await FriendRequest.findByIdAndDelete(requestId);
 
-    // 6. Return success
-    return { success: true };
+    // 7. Return success and the request
+    return { success: true, request };
 };
 
 const removeFriend = async (userId, friendId) => {

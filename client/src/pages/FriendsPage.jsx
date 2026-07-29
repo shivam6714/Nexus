@@ -4,6 +4,8 @@ import SearchResults from '../components/friends/SearchResults';
 import FriendsList from '../components/friends/FriendsList';
 import IncomingRequests from '../components/friends/IncomingRequests';
 import OutgoingRequests from '../components/friends/OutgoingRequests';
+import ServerSidebar from '../components/sidebar/ServerSidebar';
+import MainLayout from '../components/layout/MainLayout';
 import '../styles/friends.css';
 import {
     getFriends,
@@ -15,6 +17,7 @@ import {
     cancelFriendRequest,
     removeFriend
 } from '../services/friendService';
+import socket from '../socket/socket';
 
 const FriendsPage = () => {
     const [searchResults, setSearchResults] = useState([]);
@@ -38,6 +41,37 @@ const FriendsPage = () => {
 
     useEffect(() => {
         fetchInitialData();
+    }, []);
+
+    useEffect(() => {
+        socket.on("friend:request", (request) => {
+            setIncomingRequests(prev => [...prev, request]);
+        });
+
+        socket.on("friend:accepted", (request) => {
+            setOutgoingRequests(prev => prev.filter(req => req._id !== request._id));
+            setFriends(prev => [...prev, request.receiver]);
+        });
+
+        socket.on("friend:rejected", (request) => {
+            setOutgoingRequests(prev => prev.filter(req => req._id !== request._id));
+        });
+
+        socket.on("friend:cancelled", (request) => {
+            setIncomingRequests(prev => prev.filter(req => req._id !== request._id));
+        });
+
+        socket.on("friend:removed", (payload) => {
+            setFriends(prev => prev.filter(f => f._id !== payload.userId));
+        });
+
+        return () => {
+            socket.off("friend:request");
+            socket.off("friend:accepted");
+            socket.off("friend:rejected");
+            socket.off("friend:cancelled");
+            socket.off("friend:removed");
+        };
     }, []);
 
     const handleSearch = async (query) => {
@@ -101,8 +135,10 @@ const FriendsPage = () => {
     };
 
     return (
-        <div className="friends-page-container">
-            <div className="friends-header">Friends</div>
+        <MainLayout>
+            <ServerSidebar servers={[]} onSelectServer={() => {}} />
+            <div className="friends-page-container" style={{ flex: 1, padding: '24px' }}>
+                <div className="friends-header">Friends</div>
             
             <SearchBar onSearch={handleSearch} />
             
@@ -120,7 +156,8 @@ const FriendsPage = () => {
                 friends={friends}
                 onRemove={handleRemoveFriend}
             />
-        </div>
+            </div>
+        </MainLayout>
     );
 };
 
