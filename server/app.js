@@ -7,6 +7,8 @@ const serverRoutes = require("./routes/serverRoutes");
 const channelRoutes = require("./routes/channelRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const conversationRoutes = require("./routes/conversationRoutes");
+const friendRoutes = require("./routes/friendRoutes");
+const userRoutes = require("./routes/userRoutes");
 const app = express();
 
 app.use(cors({
@@ -24,6 +26,8 @@ app.use("/api/server", serverRoutes);
 app.use("/api/channel", channelRoutes);
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/friends", friendRoutes);
+app.use("/api/users", userRoutes);
 app.get("/", (req, res) => {
     res.send("Nexus backend is running");
 });
