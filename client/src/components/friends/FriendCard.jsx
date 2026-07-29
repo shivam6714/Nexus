@@ -1,7 +1,7 @@
 import React from 'react';
 import '../../styles/friends.css';
 
-const FriendCard = ({ friend }) => {
+const FriendCard = ({ friend, onRemove }) => {
     return (
         <div className="card-container">
             <div className="card-info">
@@ -11,7 +11,11 @@ const FriendCard = ({ friend }) => {
                 <div className="card-username">{friend.username}</div>
             </div>
             <div className="card-actions">
-                <button className="action-button action-reject" title="Remove Friend">
+                <button 
+                    className="action-button action-reject" 
+                    title="Remove Friend"
+                    onClick={() => onRemove(friend._id)}
+                >
                     ✕
                 </button>
             </div>

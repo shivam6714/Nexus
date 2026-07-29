@@ -1,7 +1,7 @@
 import React from 'react';
 import '../../styles/friends.css';
 
-const SearchResults = ({ results }) => {
+const SearchResults = ({ results, onSendRequest }) => {
     if (!results || results.length === 0) return null;
 
     return (
@@ -16,7 +16,9 @@ const SearchResults = ({ results }) => {
                         <div className="card-username">{user.username}</div>
                     </div>
                     <div className="card-actions">
-                        <button className="search-bar-button">Send Request</button>
+                        <button className="search-bar-button" onClick={() => onSendRequest(user._id)}>
+                            Send Request
+                        </button>
                     </div>
                 </div>
             ))}
