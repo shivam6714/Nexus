@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
 import axios from "axios";
@@ -26,6 +27,8 @@ import { getServerMembers } from "../services/memberService";
 import "../styles/layout.css";
 
 function Chat() {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [message, setMessage] = useState("");
     const [messages, setMessages] = useState([]);
 
@@ -53,6 +56,16 @@ function Chat() {
             channelId: selectedChannel?._id
         };
     }, [selectedConversation, selectedChannel]);
+
+    // Handle DM initialization from navigation state (e.g. from Friends page)
+    useEffect(() => {
+        if (location.state?.startDMWith) {
+            handleStartDM(location.state.startDMWith);
+            // Clear the state so it doesn't re-trigger on refresh
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.state?.startDMWith, location.pathname, navigate]);
 
     const emitTypingStop = () => {
         if (!isTypingRef.current) return;
@@ -424,15 +437,14 @@ function Chat() {
         setMessage("");
     };
 
-    const handleStartDM = async (userId) => {
+    const handleStartDM = async (user) => {
         try {
-            const conversation = await getOrCreateConversation(userId);
+            const conversation = await getOrCreateConversation(user._id);
             setSelectedConversation(conversation);
             setSelectedChannel(null); // Clear selected channel when DM starts
             
-            // Find and store the target user for UI display
-            const targetUser = members.find((m) => m._id === userId);
-            setDmUser(targetUser);
+            // Store the passed user in dmUser instead of searching members
+            setDmUser(user);
 
             console.log("Started DM:", conversation);
         } catch (error) {

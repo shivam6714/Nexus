@@ -25,7 +25,7 @@ function MembersSidebar({
                     <div
                         key={member._id}
                         className={`member-item ${member._id === selectedMemberId ? 'active' : ''}`}
-                        onClick={() => onStartDM(member._id)}
+                        onClick={() => onStartDM(member)}
                     >
                         🟢 {member.username}
                     </div>
@@ -39,7 +39,7 @@ function MembersSidebar({
                     <div
                         key={member._id}
                         className={`member-item ${member._id === selectedMemberId ? 'active' : ''}`}
-                        onClick={() => onStartDM(member._id)}
+                        onClick={() => onStartDM(member)}
                     >
                         🔴 {member.username}
                     </div>

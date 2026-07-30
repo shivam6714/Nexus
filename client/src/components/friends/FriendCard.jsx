@@ -1,7 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../../styles/friends.css';
 
 const FriendCard = ({ friend, onRemove }) => {
+    const navigate = useNavigate();
+
     return (
         <div className="card-container">
             <div className="card-info">
@@ -11,6 +14,13 @@ const FriendCard = ({ friend, onRemove }) => {
                 <div className="card-username">{friend.username}</div>
             </div>
             <div className="card-actions">
+                <button 
+                    className="action-button action-accept" 
+                    title="Message"
+                    onClick={() => navigate('/chat', { state: { startDMWith: friend } })}
+                >
+                    💬
+                </button>
                 <button 
                     className="action-button action-reject" 
                     title="Remove Friend"
