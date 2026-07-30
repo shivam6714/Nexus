@@ -105,7 +105,9 @@ const getDMMessages = async (req, res) => {
             });
         }
 
-        const isParticipant = conversation.participants.includes(req.user._id);
+        const isParticipant = conversation.participants.some(
+            (participantId) => participantId.toString() === req.user._id.toString()
+        );
 
         if (!isParticipant) {
             return res.status(403).json({
@@ -150,7 +152,9 @@ const createDMMessage = async (req, res) => {
             });
         }
 
-        const isParticipant = conversation.participants.includes(req.user._id);
+        const isParticipant = conversation.participants.some(
+            (participantId) => participantId.toString() === req.user._id.toString()
+        );
 
         if (!isParticipant) {
             return res.status(403).json({

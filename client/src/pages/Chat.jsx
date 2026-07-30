@@ -139,6 +139,7 @@ function Chat() {
 
     // Fetch channels when server changes
     useEffect(() => {
+        let isMounted = true;
         if (!selectedServer) return;
 
         const fetchChannels = async () => {
@@ -154,25 +155,41 @@ function Chat() {
                     }
                 );
 
+                if (!isMounted) return;
+
                 setChannels(response.data.channels);
 
                 if (response.data.channels.length > 0) {
-                    setSelectedChannel(response.data.channels[0]);
+                    setSelectedChannel(prev => {
+                        // Only auto-select the first channel if we haven't selected a conversation
+                        // and we don't already have a channel selected
+                        if (!prev && !selectedConversation) {
+                            return response.data.channels[0];
+                        }
+                        return prev;
+                    });
                 }
 
                 console.log(
                     `[Channels] Loaded ${response.data.channels.length} channel(s)`
                 );
             } catch (error) {
-                console.error(
-                    "[Channels] Failed:",
-                    error.response?.data?.message || error.message
-                );
+                if (isMounted) {
+                    console.error(
+                        "[Channels] Failed:",
+                        error.response?.data?.message || error.message
+                    );
+                }
             }
         };
 
         fetchChannels();
-    }, [selectedServer]);
+
+        return () => {
+            isMounted = false;
+        };
+    }, [selectedServer, selectedConversation]);
+
     useEffect(() => {
         if (!selectedServer) return;
 
@@ -195,6 +212,7 @@ function Chat() {
 
         fetchMembers();
     }, [selectedServer]);
+
     // Fetch messages whenever channel or conversation changes
     useEffect(() => {
         let isMounted = true;
@@ -637,16 +655,18 @@ function Chat() {
                     onCreateServer={() => setActiveModal("options")}
                 />
 
-                <ChannelSidebar
-                    server={selectedServer}
-                    channels={channels}
-                    selectedChannel={selectedChannel}
-                    onSelectChannel={handleSelectChannel}
-                    onCreateChannel={() => {
-                        console.log("Channel + clicked");
-                        setShowCreateChannel(true);
-                    }}
-                />
+                {!selectedConversation && (
+                    <ChannelSidebar
+                        server={selectedServer}
+                        channels={channels}
+                        selectedChannel={selectedChannel}
+                        onSelectChannel={handleSelectChannel}
+                        onCreateChannel={() => {
+                            console.log("Channel + clicked");
+                            setShowCreateChannel(true);
+                        }}
+                    />
+                )}
 
                 <ChatArea>
                     {selectedConversation ? (
@@ -680,12 +700,14 @@ function Chat() {
                     />
                 </ChatArea>
 
-                <MembersSidebar
-                    members={members}
-                    onlineUsers={onlineUsers}
-                    onStartDM={handleStartDM}
-                    selectedMemberId={dmUser?._id}
-                />
+                {!selectedConversation && (
+                    <MembersSidebar
+                        members={members}
+                        onlineUsers={onlineUsers}
+                        onStartDM={handleStartDM}
+                        selectedMemberId={dmUser?._id}
+                    />
+                )}
             </MainLayout>
 
             <Modal
