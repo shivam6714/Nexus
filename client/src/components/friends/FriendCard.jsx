@@ -1,9 +1,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getOrCreateConversation } from '../../services/conversationService';
 import '../../styles/friends.css';
 
 const FriendCard = ({ friend, onRemove }) => {
     const navigate = useNavigate();
+
+    const handleMessage = async () => {
+        try {
+            const conversation = await getOrCreateConversation(friend._id);
+            navigate(`/chat/dm/${conversation._id}`, { state: { dmUser: friend } });
+        } catch (error) {
+            console.error("Failed to start DM:", error);
+        }
+    };
 
     return (
         <div className="card-container">
@@ -17,7 +27,7 @@ const FriendCard = ({ friend, onRemove }) => {
                 <button 
                     className="action-button action-accept" 
                     title="Message"
-                    onClick={() => navigate('/chat', { state: { startDMWith: friend } })}
+                    onClick={handleMessage}
                 >
                     💬
                 </button>

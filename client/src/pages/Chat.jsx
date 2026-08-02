@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
 import axios from "axios";
-import { createServer, getServerInfo, leaveServer, transferAndLeaveServer, deleteServer } from "../services/serverService";
+import { createServer, getServerInfo, leaveServer, transferAndLeaveServer, deleteServer, renameServer } from "../services/serverService";
 import socket from "../socket/socket";
 import JoinServerForm from "../components/forms/JoinServerForm";
 import ServerSidebar from "../components/sidebar/ServerSidebar";
@@ -12,6 +12,9 @@ import CreateChannelForm from "../components/forms/CreateChannelForm";
 import ServerOptions from "../components/forms/ServerOptions";
 import ServerInfoModal from "../components/forms/ServerInfoModal";
 import ServerActionsModal from "../components/forms/ServerActionsModal";
+import ServerSettingsModal from "../components/forms/ServerSettingsModal";
+import LeaveServerModal from "../components/forms/LeaveServerModal";
+import DeleteServerModal from "../components/forms/DeleteServerModal";
 import TransferOwnershipModal from "../components/forms/TransferOwnershipModal";
 import MainLayout from "../components/layout/MainLayout";
 import ChatArea from "../components/layout/ChatArea";
@@ -40,7 +43,6 @@ function Chat() {
     const [members, setMembers] = useState([]);
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [activeModal, setActiveModal] = useState(null);
-    const [showCreateChannel, setShowCreateChannel] = useState(false);
     const [selectedConversation, setSelectedConversation] = useState(null);
     const [dmUser, setDmUser] = useState(null);
     const [serverInfo, setServerInfo] = useState(null);
@@ -333,6 +335,13 @@ function Chat() {
             }
         };
 
+        const handleServerUpdated = (payload) => {
+            setServers(prev => prev.map(s => s._id === payload.server._id ? { ...s, ...payload.server } : s));
+            if (selectedServer && payload.server._id === selectedServer._id) {
+                setSelectedServer(prev => ({ ...prev, ...payload.server }));
+            }
+        };
+
         const handleTypingStart = (payload) => {
             if (
                 (selectedConversation && payload.conversationId === selectedConversation._id) ||
@@ -360,6 +369,7 @@ function Chat() {
         socket.on("server-member-joined", handleServerMemberJoined);
         socket.on("server-member-left", handleServerMemberLeft);
         socket.on("server-owner-changed", handleServerOwnerChanged);
+        socket.on("server-updated", handleServerUpdated);
         socket.on("typing-start", handleTypingStart);
         socket.on("typing-stop", handleTypingStop);
 
@@ -370,6 +380,7 @@ function Chat() {
             socket.off("server-member-joined", handleServerMemberJoined);
             socket.off("server-member-left", handleServerMemberLeft);
             socket.off("server-owner-changed", handleServerOwnerChanged);
+            socket.off("server-updated", handleServerUpdated);
             socket.off("typing-start", handleTypingStart);
             socket.off("typing-stop", handleTypingStop);
         };
@@ -476,6 +487,17 @@ function Chat() {
         setSelectedChannel(channel);
     };
 
+    const handleRenameServer = async (newName) => {
+        if (!selectedServer) return;
+        try {
+            await renameServer(selectedServer._id, newName);
+            setActiveModal(null);
+        } catch (error) {
+            console.error(error);
+            alert(error.response?.data?.message || "Failed to rename server");
+        }
+    };
+
     const handleCreateServer = async (serverData) => {
         try {
             const data = await createServer(serverData);
@@ -512,32 +534,35 @@ function Chat() {
         }
     };
 
+    const resetWorkspace = (leftServerId) => {
+        if (socket.connected) {
+            socket.emit("leave-server-room", leftServerId);
+        }
+        
+        const remainingServers = servers.filter(s => s._id !== leftServerId);
+        setServers(remainingServers);
+        
+        if (remainingServers.length > 0) {
+            setSelectedServer(remainingServers[0]);
+        } else {
+            setSelectedServer(null);
+            setSelectedChannel(null);
+            setSelectedConversation(null);
+            setDmUser(null);
+            setChannels([]);
+            setMessages([]);
+            setMembers([]);
+            setTypingUsers([]);
+        }
+        
+        setActiveModal(null);
+    };
+
     const confirmLeaveServer = async () => {
         if (!selectedServer) return;
         try {
             await leaveServer(selectedServer._id);
-            
-            if (socket.connected) {
-                socket.emit("leave-server-room", selectedServer._id);
-            }
-            
-            const remainingServers = servers.filter(s => s._id !== selectedServer._id);
-            setServers(remainingServers);
-            
-            if (remainingServers.length > 0) {
-                setSelectedServer(remainingServers[0]);
-            } else {
-                setSelectedServer(null);
-                setSelectedChannel(null);
-                setSelectedConversation(null);
-                setDmUser(null);
-                setChannels([]);
-                setMessages([]);
-                setMembers([]);
-                setTypingUsers([]);
-            }
-            
-            setActiveModal(null);
+            resetWorkspace(selectedServer._id);
         } catch (error) {
             console.error(error);
             alert(error.response?.data?.message || "Failed to leave server");
@@ -549,28 +574,7 @@ function Chat() {
         if (!selectedServer) return;
         try {
             await deleteServer(selectedServer._id);
-            
-            if (socket.connected) {
-                socket.emit("leave-server-room", selectedServer._id);
-            }
-            
-            const remainingServers = servers.filter(s => s._id !== selectedServer._id);
-            setServers(remainingServers);
-            
-            if (remainingServers.length > 0) {
-                setSelectedServer(remainingServers[0]);
-            } else {
-                setSelectedServer(null);
-                setSelectedChannel(null);
-                setSelectedConversation(null);
-                setDmUser(null);
-                setChannels([]);
-                setMessages([]);
-                setMembers([]);
-                setTypingUsers([]);
-            }
-            
-            setActiveModal(null);
+            resetWorkspace(selectedServer._id);
         } catch (error) {
             console.error(error);
             alert(error.response?.data?.message || "Failed to delete server");
@@ -582,32 +586,24 @@ function Chat() {
         if (!selectedServer) return;
         try {
             await transferAndLeaveServer(selectedServer._id, newOwnerId);
-            
-            if (socket.connected) {
-                socket.emit("leave-server-room", selectedServer._id);
-            }
-            
-            const remainingServers = servers.filter(s => s._id !== selectedServer._id);
-            setServers(remainingServers);
-            
-            if (remainingServers.length > 0) {
-                setSelectedServer(remainingServers[0]);
-            } else {
-                setSelectedServer(null);
-                setSelectedChannel(null);
-                setSelectedConversation(null);
-                setDmUser(null);
-                setChannels([]);
-                setMessages([]);
-                setMembers([]);
-                setTypingUsers([]);
-            }
-            
-            setActiveModal(null);
+            resetWorkspace(selectedServer._id);
         } catch (error) {
             console.error(error);
             alert(error.response?.data?.message || "Failed to transfer ownership");
             setActiveModal(null);
+        }
+    };
+
+    const handleLeaveServerClick = () => {
+        const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+        if (selectedServer?.owner === currentUser._id) {
+            if (members.length === 1) {
+                setActiveModal("deleteServer");
+            } else {
+                setActiveModal("transferOwnership");
+            }
+        } else {
+            setActiveModal("leaveServer");
         }
     };
 
@@ -637,8 +633,7 @@ function Chat() {
 
             // Channel creation is now handled by the backend socket event `channel-created`
             // But we can optimistically select the new channel
-            setSelectedChannel(data.channel);
-            setShowCreateChannel(false);
+            setActiveModal(null);
         } catch (error) {
             console.error(error);
             alert("Failed to create channel");
@@ -663,7 +658,7 @@ function Chat() {
                         onSelectChannel={handleSelectChannel}
                         onCreateChannel={() => {
                             console.log("Channel + clicked");
-                            setShowCreateChannel(true);
+                            setActiveModal("createChannel");
                         }}
                     />
                 )}
@@ -677,7 +672,7 @@ function Chat() {
                         <TopBar 
                             channel={selectedChannel} 
                             server={selectedServer}
-                            onOpenServerActions={() => setActiveModal("serverActions")}
+                            onOpenServerActions={() => setActiveModal("serverSettings")}
                         />
                     )}
 
@@ -720,21 +715,18 @@ function Chat() {
                         onJoin={() => setActiveModal("join")}
                     />
                 )}
+                {activeModal === "serverSettings" && (
+                    <ServerSettingsModal
+                        server={selectedServer}
+                        currentUser={JSON.parse(localStorage.getItem("user") || "{}")}
+                        onRename={handleRenameServer}
+                        onLeave={handleLeaveServerClick}
+                    />
+                )}
                 {activeModal === "serverActions" && (
                     <ServerActionsModal
                         onServerInfo={handleServerInfo}
-                        onLeaveServer={() => {
-                            const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-                            if (selectedServer?.owner === currentUser._id) {
-                                if (members.length === 1) {
-                                    setActiveModal("deleteServer");
-                                } else {
-                                    setActiveModal("transferOwnership");
-                                }
-                            } else {
-                                setActiveModal("leaveServer");
-                            }
-                        }}
+                        onLeaveServer={handleLeaveServerClick}
                         onClose={() => setActiveModal(null)}
                     />
                 )}
@@ -757,26 +749,16 @@ function Chat() {
                     />
                 )}
                 {activeModal === "leaveServer" && (
-                    <div style={{ padding: "20px", color: "white" }}>
-                        <h2>Are you sure you want to leave this server?</h2>
-                        <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-                            <button onClick={() => setActiveModal(null)} className="server-option-btn secondary">Cancel</button>
-                            <button onClick={confirmLeaveServer} className="server-option-btn danger" style={{ backgroundColor: "#ed4245" }}>Leave Server</button>
-                        </div>
-                    </div>
+                    <LeaveServerModal
+                        onCancel={() => setActiveModal(null)}
+                        onConfirm={confirmLeaveServer}
+                    />
                 )}
                 {activeModal === "deleteServer" && (
-                    <div style={{ padding: "20px", color: "white" }}>
-                        <h2>Delete Server</h2>
-                        <p style={{ marginTop: "10px", color: "#b9bbbe", lineHeight: "1.5" }}>
-                            You are the last member of this server.<br/>
-                            Leaving will permanently delete the server.
-                        </p>
-                        <div style={{ display: "flex", gap: "10px", marginTop: "20px", justifyContent: "flex-end" }}>
-                            <button onClick={() => setActiveModal(null)} className="server-option-btn secondary" style={{ margin: 0, width: "auto", padding: "10px 24px" }}>Cancel</button>
-                            <button onClick={handleDeleteServer} className="server-option-btn danger" style={{ backgroundColor: "#ed4245", margin: 0, width: "auto", padding: "10px 24px" }}>Delete Server</button>
-                        </div>
-                    </div>
+                    <DeleteServerModal
+                        onCancel={() => setActiveModal(null)}
+                        onConfirm={handleDeleteServer}
+                    />
                 )}
                 {activeModal === "transferOwnership" && (
                     <TransferOwnershipModal
@@ -786,14 +768,12 @@ function Chat() {
                         onClose={() => setActiveModal(null)}
                     />
                 )}
-            </Modal>
-
-            <Modal
-                isOpen={showCreateChannel}
-                title="Create Channel"
-                onClose={() => setShowCreateChannel(false)}
-            >
-                <CreateChannelForm onSubmit={handleCreateChannel} />
+                {activeModal === "createChannel" && (
+                    <div style={{ padding: "10px" }}>
+                        <h2 style={{ color: "white", marginBottom: "15px" }}>Create Channel</h2>
+                        <CreateChannelForm onSubmit={handleCreateChannel} />
+                    </div>
+                )}
             </Modal>
         </>
     );

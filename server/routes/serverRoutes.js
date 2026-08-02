@@ -14,6 +14,7 @@ const {
     leaveServer,
     transferAndLeave,
     deleteServer,
+    renameServer,
 } = require("../controllers/serverController");
 router.get("/", protect, getMyServers);
 router.post("/create", protect, createServer);
@@ -48,5 +49,10 @@ router.put(
     protect,
     upload.single("icon"),
     uploadServerIcon
+);
+router.put(
+    "/:serverId/rename",
+    protect,
+    renameServer
 );
 module.exports = router;

@@ -46,3 +46,8 @@ export const deleteServer = async (serverId) => {
     const response = await api.delete(`/server/${serverId}`);
     return response.data;
 };
+
+export const renameServer = async (serverId, name) => {
+    const response = await api.put(`/server/${serverId}/rename`, { name });
+    return response.data;
+};

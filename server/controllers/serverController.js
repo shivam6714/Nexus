@@ -1,6 +1,13 @@
 const Server = require("../models/Server");
 const Channel = require("../models/Channel");
 const generateInviteCode = require("../utils/generateInviteCode");
+const {
+    emitServerUpdated,
+    emitMemberLeft,
+    emitOwnerTransferred,
+    emitServerDeleted,
+    emitMemberJoined
+} = require("../socket/serverEvents");
 
 const createServer = async (req, res) => {
     try {
@@ -105,10 +112,7 @@ const joinServer = async (req, res) => {
 
         await server.save();
 
-        req.app.get("io").to(`server-${server._id}`).emit("server-member-joined", {
-            user: req.user,
-            serverId: server._id
-        });
+        emitMemberJoined(req.app.get("io"), server._id, req.user);
 
         res.status(200).json({
             success: true,
@@ -253,6 +257,36 @@ const getServerInfo = async (req, res) => {
     }
 };
 
+const renameServer = async (req, res) => {
+    try {
+        const { serverId } = req.params;
+        const { name } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ success: false, message: "Name is required" });
+        }
+
+        const server = await Server.findById(serverId);
+        if (!server) {
+            return res.status(404).json({ success: false, message: "Server not found" });
+        }
+
+        if (server.owner.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: "Only the server owner can rename the server" });
+        }
+
+        server.name = name;
+        await server.save();
+
+        emitServerUpdated(req.app.get("io"), server._id, server);
+
+        res.status(200).json({ success: true, message: "Server renamed successfully", server });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
 const leaveServer = async (req, res) => {
     try {
         const { serverId } = req.params;
@@ -290,10 +324,7 @@ const leaveServer = async (req, res) => {
 
         await server.save();
 
-        req.app.get("io").to(`server-${server._id}`).emit("server-member-left", {
-            userId: req.user._id,
-            serverId: server._id
-        });
+        emitMemberLeft(req.app.get("io"), server._id, req.user._id);
 
         res.status(200).json({
             success: true,
@@ -331,15 +362,8 @@ const transferAndLeave = async (req, res) => {
 
         await server.save();
 
-        req.app.get("io").to(`server-${server._id}`).emit("server-owner-changed", {
-            serverId: server._id,
-            newOwnerId
-        });
-
-        req.app.get("io").to(`server-${server._id}`).emit("server-member-left", {
-            serverId: server._id,
-            userId: req.user._id
-        });
+        emitOwnerTransferred(req.app.get("io"), server._id, newOwnerId);
+        emitMemberLeft(req.app.get("io"), server._id, req.user._id);
 
         res.status(200).json({ success: true, message: "Ownership transferred and left server successfully" });
     } catch (error) {
@@ -363,9 +387,7 @@ const deleteServer = async (req, res) => {
 
         await Server.findByIdAndDelete(serverId);
 
-        req.app.get("io").to(`server-${serverId}`).emit("server-deleted", {
-            serverId
-        });
+        emitServerDeleted(req.app.get("io"), serverId);
 
         res.status(200).json({ success: true, message: "Server deleted successfully" });
     } catch (error) {
@@ -384,4 +406,5 @@ module.exports = {
     leaveServer,
     transferAndLeave,
     deleteServer,
+    renameServer,
 };
