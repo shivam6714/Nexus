@@ -2,7 +2,7 @@ import React from "react";
 // Re-use existing server options styles for consistency
 import "./ServerOptions.css";
 
-const ServerActionsModal = ({ onServerInfo, onLeaveServer }) => {
+const ServerActionsModal = ({ onServerInfo, onManageServer, onLeaveServer }) => {
     return (
         <div className="server-options">
             <h2>Server Actions</h2>
@@ -17,6 +17,13 @@ const ServerActionsModal = ({ onServerInfo, onLeaveServer }) => {
                 </button>
 
                 {/* Additional future actions like Server Settings or Roles can be cleanly inserted here */}
+                
+                <button
+                    className="server-option-btn primary"
+                    onClick={onManageServer}
+                >
+                    Manage Server
+                </button>
 
                 <button
                     className="server-option-btn danger"

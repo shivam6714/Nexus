@@ -37,6 +37,22 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/chat/dm/:conversationId"
+          element={
+            <ProtectedRoute>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat/server/:serverId/channel/:channelId"
+          element={
+            <ProtectedRoute>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/friends"

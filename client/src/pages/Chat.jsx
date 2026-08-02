@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
 import axios from "axios";
@@ -32,6 +32,7 @@ import "../styles/layout.css";
 function Chat() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { conversationId, serverId, channelId } = useParams();
     const [message, setMessage] = useState("");
     const [messages, setMessages] = useState([]);
 
@@ -122,7 +123,12 @@ function Chat() {
                 setServers(response.data.servers);
 
                 if (response.data.servers.length > 0) {
-                    setSelectedServer(response.data.servers[0]);
+                    if (serverId) {
+                        const srv = response.data.servers.find(s => s._id === serverId);
+                        if (srv) setSelectedServer(srv);
+                    } else if (!conversationId) {
+                        setSelectedServer(response.data.servers[0]);
+                    }
                 }
 
                 console.log(
@@ -137,7 +143,7 @@ function Chat() {
         };
 
         fetchServers();
-    }, []);
+    }, [serverId, conversationId]);
 
     // Fetch channels when server changes
     useEffect(() => {
@@ -162,14 +168,21 @@ function Chat() {
                 setChannels(response.data.channels);
 
                 if (response.data.channels.length > 0) {
-                    setSelectedChannel(prev => {
-                        // Only auto-select the first channel if we haven't selected a conversation
-                        // and we don't already have a channel selected
-                        if (!prev && !selectedConversation) {
-                            return response.data.channels[0];
+                    if (channelId) {
+                        const ch = response.data.channels.find(c => c._id === channelId);
+                        if (ch) {
+                            setSelectedChannel(ch);
+                            setSelectedConversation(null);
+                        } else if (!selectedConversation) {
+                            const firstChannel = response.data.channels[0];
+                            setSelectedChannel(firstChannel);
+                            navigate(`/chat/server/${selectedServer._id}/channel/${firstChannel._id}`, { replace: true });
                         }
-                        return prev;
-                    });
+                    } else if (!selectedConversation) {
+                        const firstChannel = response.data.channels[0];
+                        setSelectedChannel(firstChannel);
+                        navigate(`/chat/server/${selectedServer._id}/channel/${firstChannel._id}`, { replace: true });
+                    }
                 }
 
                 console.log(
@@ -190,7 +203,7 @@ function Chat() {
         return () => {
             isMounted = false;
         };
-    }, [selectedServer, selectedConversation]);
+    }, [selectedServer, selectedConversation, channelId, navigate]);
 
     useEffect(() => {
         if (!selectedServer) return;
@@ -266,6 +279,17 @@ function Chat() {
             isMounted = false;
         };
     }, [selectedChannel, selectedConversation]);
+
+    // Handle DM URL params
+    useEffect(() => {
+        if (conversationId && location.pathname.startsWith("/chat/dm")) {
+            setSelectedConversation({ _id: conversationId });
+            if (location.state?.dmUser) {
+                setDmUser(location.state.dmUser);
+            }
+            setSelectedChannel(null);
+        }
+    }, [conversationId, location.state]);
 
     // Connect socket only once
     useEffect(() => {
@@ -474,6 +498,7 @@ function Chat() {
             
             // Store the passed user in dmUser instead of searching members
             setDmUser(user);
+            navigate(`/chat/dm/${conversation._id}`, { state: { dmUser: user } });
 
             console.log("Started DM:", conversation);
         } catch (error) {
@@ -485,6 +510,9 @@ function Chat() {
         setSelectedConversation(null);
         setDmUser(null);
         setSelectedChannel(channel);
+        if (selectedServer) {
+            navigate(`/chat/server/${selectedServer._id}/channel/${channel._id}`);
+        }
     };
 
     const handleRenameServer = async (newName) => {
@@ -672,7 +700,7 @@ function Chat() {
                         <TopBar 
                             channel={selectedChannel} 
                             server={selectedServer}
-                            onOpenServerActions={() => setActiveModal("serverSettings")}
+                            onOpenServerActions={() => setActiveModal("serverActions")}
                         />
                     )}
 
@@ -726,6 +754,7 @@ function Chat() {
                 {activeModal === "serverActions" && (
                     <ServerActionsModal
                         onServerInfo={handleServerInfo}
+                        onManageServer={() => setActiveModal("serverSettings")}
                         onLeaveServer={handleLeaveServerClick}
                         onClose={() => setActiveModal(null)}
                     />
