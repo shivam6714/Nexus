@@ -2,12 +2,13 @@ import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
-import axios from "axios";
+import api from "../services/api";
 import { createServer, getServerInfo, leaveServer, transferAndLeaveServer, deleteServer, renameServer } from "../services/serverService";
 import socket from "../socket/socket";
 import JoinServerForm from "../components/forms/JoinServerForm";
 import ServerSidebar from "../components/sidebar/ServerSidebar";
 import ChannelSidebar from "../components/sidebar/ChannelSidebar";
+import DMSidebar from "../components/sidebar/DMSidebar";
 import CreateChannelForm from "../components/forms/CreateChannelForm";
 import ServerOptions from "../components/forms/ServerOptions";
 import ServerInfoModal from "../components/forms/ServerInfoModal";
@@ -22,7 +23,7 @@ import TopBar from "../components/layout/TopBar";
 import MembersSidebar from "../components/layout/MembersSidebar";
 import MessageInput from "../components/layout/MessageInput";
 import { createChannel } from "../services/channelService";
-import { getOrCreateConversation } from "../services/conversationService";
+import { getOrCreateConversation, getConversations } from "../services/conversationService";
 import { sendDM, getDMMessages } from "../services/dmService";
 import MessageList from "../components/message/MessageList";
 import { joinServer } from "../services/joinServerService";
@@ -45,10 +46,12 @@ function Chat() {
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [activeModal, setActiveModal] = useState(null);
     const [selectedConversation, setSelectedConversation] = useState(null);
+    const [conversations, setConversations] = useState([]);
     const [dmUser, setDmUser] = useState(null);
     const [serverInfo, setServerInfo] = useState(null);
 
     const [typingUsers, setTypingUsers] = useState([]);
+    const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
     const typingTimeoutRef = useRef(null);
     const isTypingRef = useRef(false);
     const activeRoomRef = useRef({ conversationId: null, channelId: null });
@@ -69,6 +72,20 @@ function Chat() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.state?.startDMWith, location.pathname, navigate]);
+
+    // Fetch conversations
+    useEffect(() => {
+        const fetchConversations = async () => {
+            try {
+                const data = await getConversations();
+                setConversations(data);
+            } catch (error) {
+                console.error("Failed to fetch conversations:", error);
+            }
+        };
+
+        fetchConversations();
+    }, []);
 
     const emitTypingStop = () => {
         if (!isTypingRef.current) return;
@@ -109,16 +126,7 @@ function Chat() {
     useEffect(() => {
         const fetchServers = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const response = await axios.get(
-                    "http://localhost:5000/api/server",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
+                const response = await api.get("/server");
 
                 setServers(response.data.servers);
 
@@ -127,7 +135,8 @@ function Chat() {
                         const srv = response.data.servers.find(s => s._id === serverId);
                         if (srv) setSelectedServer(srv);
                     } else if (!conversationId) {
-                        setSelectedServer(response.data.servers[0]);
+                        setSelectedServer(null);
+                        setSelectedChannel(null);
                     }
                 }
 
@@ -152,16 +161,7 @@ function Chat() {
 
         const fetchChannels = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const response = await axios.get(
-                    `http://localhost:5000/api/channel/${selectedServer._id}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
+                const response = await api.get(`/channel/${selectedServer._id}`);
 
                 if (!isMounted) return;
 
@@ -247,16 +247,7 @@ function Chat() {
                 }
             } else if (selectedChannel) {
                 try {
-                    const token = localStorage.getItem("token");
-
-                    const response = await axios.get(
-                        `http://localhost:5000/api/message/${selectedChannel._id}`,
-                        {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                            },
-                        }
-                    );
+                    const response = await api.get(`/message/${selectedChannel._id}`);
 
                     if (isMounted) {
                         setMessages(response.data.messages);
@@ -293,21 +284,30 @@ function Chat() {
 
     // Connect socket only once
     useEffect(() => {
-        socket.connect();
+        if (!socket.connected) {
+            socket.connect();
+        }
 
-        socket.on("connect", () => {
+        const handleConnect = () => {
             console.log("[Socket] Connected to server");
-        });
+            setIsSocketConnected(true);
+        };
 
+        const handleDisconnect = () => {
+            setIsSocketConnected(false);
+        };
+
+        socket.on("connect", handleConnect);
+        socket.on("disconnect", handleDisconnect);
         socket.on("online-users", (users) => {
             console.log("[Presence] Online users:", users);
             setOnlineUsers(users);
         });
 
         return () => {
-            socket.off("connect");
+            socket.off("connect", handleConnect);
+            socket.off("disconnect", handleDisconnect);
             socket.off("online-users");
-            socket.disconnect();
         };
     }, []);
 
@@ -323,6 +323,21 @@ function Chat() {
             if (selectedConversation && message.conversation === selectedConversation._id) {
                 setMessages((prev) => [...prev, message]);
             }
+            // Update conversations list
+            setConversations((prev) => {
+                const convIndex = prev.findIndex(c => c.conversationId === message.conversation);
+                if (convIndex > -1) {
+                    const conv = prev[convIndex];
+                    const updatedConv = { ...conv, lastMessagePreview: message.content, lastMessageAt: new Date().toISOString() };
+                    const newConvs = [...prev];
+                    newConvs.splice(convIndex, 1);
+                    newConvs.unshift(updatedConv);
+                    return newConvs;
+                } else {
+                    getConversations().then(data => setConversations(data)).catch(console.error);
+                    return prev;
+                }
+            });
         };
 
         const handleChannelCreated = (channel) => {
@@ -412,7 +427,7 @@ function Chat() {
 
     // Join room whenever selected channel changes
     useEffect(() => {
-        if (!selectedChannel) return;
+        if (!selectedChannel || !isSocketConnected) return;
 
         socket.emit("join-channel-room", selectedChannel._id);
 
@@ -427,11 +442,11 @@ function Chat() {
                 socket.emit("typing-stop", { channelId: selectedChannel._id });
             }
         };
-    }, [selectedChannel]);
+    }, [selectedChannel, isSocketConnected]);
 
     // Join DM room whenever selected conversation changes
     useEffect(() => {
-        if (!selectedConversation) return;
+        if (!selectedConversation || !isSocketConnected) return;
 
         socket.emit("join-dm-room", selectedConversation._id);
 
@@ -444,13 +459,13 @@ function Chat() {
                 socket.emit("typing-stop", { conversationId: selectedConversation._id });
             }
         };
-    }, [selectedConversation]);
+    }, [selectedConversation, isSocketConnected]);
 
     // Join server room whenever selected server changes
     useEffect(() => {
-        if (!selectedServer) return;
+        if (!selectedServer || !isSocketConnected) return;
         socket.emit("join-server-room", selectedServer._id);
-    }, [selectedServer]);
+    }, [selectedServer, isSocketConnected]);
 
     const handleSend = async () => {
         const trimmedMessage = message.trim();
@@ -498,6 +513,19 @@ function Chat() {
             
             // Store the passed user in dmUser instead of searching members
             setDmUser(user);
+            
+            // Add to sidebar if not present
+            setConversations(prev => {
+                if (prev.some(c => c.conversationId === conversation._id)) return prev;
+                return [{
+                    _id: conversation._id,
+                    conversationId: conversation._id,
+                    otherParticipant: user,
+                    lastMessagePreview: "",
+                    lastMessageAt: new Date().toISOString()
+                }, ...prev];
+            });
+
             navigate(`/chat/dm/${conversation._id}`, { state: { dmUser: user } });
 
             console.log("Started DM:", conversation);
@@ -678,7 +706,12 @@ function Chat() {
                     onCreateServer={() => setActiveModal("options")}
                 />
 
-                {!selectedConversation && (
+                <DMSidebar 
+                    conversations={conversations}
+                    selectedConversationId={selectedConversation?._id}
+                />
+
+                {selectedServer && (
                     <ChannelSidebar
                         server={selectedServer}
                         channels={channels}
@@ -695,6 +728,10 @@ function Chat() {
                     {selectedConversation ? (
                         <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px" }}>
                             DM with {dmUser ? dmUser.username : "User"}
+                        </div>
+                    ) : !selectedServer ? (
+                        <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px", color: "#f2f3f5" }}>
+                            Direct Messages
                         </div>
                     ) : (
                         <TopBar 
@@ -714,13 +751,15 @@ function Chat() {
                         </div>
                     )}
 
-                    <MessageInput
-                        message={message}
-                        setMessage={handleTypingChange}
-                        handleSend={handleSend}
-                        channel={selectedChannel}
-                        placeholder={selectedConversation ? `Message @${dmUser ? dmUser.username : "User"}` : undefined}
-                    />
+                    {(selectedChannel || selectedConversation) && (
+                        <MessageInput
+                            message={message}
+                            setMessage={handleTypingChange}
+                            handleSend={handleSend}
+                            channel={selectedChannel}
+                            placeholder={selectedConversation ? `Message @${dmUser ? dmUser.username : "User"}` : undefined}
+                        />
+                    )}
                 </ChatArea>
 
                 {!selectedConversation && (

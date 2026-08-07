@@ -9,6 +9,12 @@ const conversationSchema = new mongoose.Schema(
                 required: true,
             },
         ],
+        lastMessagePreview: {
+            type: String,
+        },
+        lastMessageAt: {
+            type: Date,
+        },
     },
     {
         timestamps: true,

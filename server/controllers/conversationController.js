@@ -42,6 +42,43 @@ const getOrCreateConversation = async (req, res) => {
     }
 };
 
+const getConversations = async (req, res) => {
+    try {
+        const currentUserId = req.user._id;
+
+        const conversations = await Conversation.find({
+            participants: currentUserId,
+        })
+            .populate("participants", "_id username avatar")
+            .sort({ lastMessageAt: -1 });
+
+        // Map the other participant for frontend convenience
+        const formattedConversations = conversations.map((conv) => {
+            const otherParticipant = conv.participants.find(
+                (p) => p._id.toString() !== currentUserId.toString()
+            );
+
+            return {
+                _id: conv._id,
+                conversationId: conv._id,
+                otherParticipant: otherParticipant || conv.participants[0], // fallback if it's a self-dm
+                lastMessagePreview: conv.lastMessagePreview,
+                lastMessageAt: conv.lastMessageAt,
+            };
+        });
+
+        res.status(200).json({
+            conversations: formattedConversations,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: "Server Error",
+        });
+    }
+};
+
 module.exports = {
     getOrCreateConversation,
+    getConversations,
 };

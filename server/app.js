@@ -32,4 +32,11 @@ app.get("/", (req, res) => {
     res.send("Nexus backend is running");
 });
 
+app.get("/api/debug", (req, res) => {
+    res.json({
+        secretLength: process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0,
+        secretPrefix: process.env.JWT_SECRET ? process.env.JWT_SECRET.substring(0, 3) : "none"
+    });
+});
+
 module.exports = app;

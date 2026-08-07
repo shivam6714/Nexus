@@ -4,8 +4,13 @@ const socket = io("http://localhost:5000", {
     autoConnect: false,
 });
 
+let token = localStorage.getItem("token");
+if (token) {
+    token = token.replace(/^"(.*)"$/, '$1');
+}
+
 socket.auth = {
-    token: localStorage.getItem("token"),
+    token: token,
 };
 
 export default socket;  

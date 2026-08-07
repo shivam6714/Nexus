@@ -170,6 +170,10 @@ const createDMMessage = async (req, res) => {
             conversation: conversation._id,
         });
 
+        conversation.lastMessagePreview = content;
+        conversation.lastMessageAt = new Date();
+        await conversation.save();
+
         const populatedMessage = await message.populate("sender", "username avatar");
 
         res.status(201).json({

@@ -1,30 +1,11 @@
-import axios from "axios";
+import api from "./api";
 
-const API_URL = "http://localhost:5000/api/message/dm";
 export const sendDM = async (conversationId, content) => {
-    const token = localStorage.getItem("token");
-
-    const response = await axios.post(
-        API_URL,
-        { conversationId, content },
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
-
+    const response = await api.post("/message/dm", { conversationId, content });
     return response.data.data;
 };
 
 export const getDMMessages = async (conversationId) => {
-    const token = localStorage.getItem("token");
-
-    const response = await axios.get(`${API_URL}/${conversationId}`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    });
-
+    const response = await api.get(`/message/dm/${conversationId}`);
     return response.data.messages;
 };

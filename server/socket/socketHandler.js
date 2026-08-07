@@ -77,6 +77,10 @@ const registerSocketHandlers = (io) => {
 
                 const populatedMessage = await message.populate("sender", "username avatar");
 
+                conversation.lastMessagePreview = content;
+                conversation.lastMessageAt = new Date();
+                await conversation.save();
+
                 // Emit to all participants
                 conversation.participants.forEach((participantId) => {
                     const participantSockets = onlineUsers.get(participantId.toString());
