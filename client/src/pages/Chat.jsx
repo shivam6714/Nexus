@@ -418,6 +418,21 @@ function Chat() {
             }
         };
 
+        const handleMessageEdited = (editedMessage) => {
+            console.log("[EDIT FRONTEND] Received message-edited:", editedMessage);
+            setMessages((prev) => prev.map((msg) => (msg._id === editedMessage._id ? editedMessage : msg)));
+        };
+
+        const handleMessageDeleted = (payload) => {
+            console.log("[DELETE FRONTEND] Received message-deleted:", payload);
+            setMessages((prev) => prev.filter((msg) => msg._id !== payload.messageId));
+        };
+
+        const handleMessageError = (payload) => {
+            console.log("[MESSAGE ERROR FROM SERVER]:", payload);
+            console.error("Message Error:", payload.message);
+        };
+
         socket.on("receive-message", handleReceiveMessage);
         socket.on("receive-dm", handleReceiveDM);
         socket.on("channel-created", handleChannelCreated);
@@ -427,6 +442,9 @@ function Chat() {
         socket.on("server-updated", handleServerUpdated);
         socket.on("typing-start", handleTypingStart);
         socket.on("typing-stop", handleTypingStop);
+        socket.on("message-edited", handleMessageEdited);
+        socket.on("message-deleted", handleMessageDeleted);
+        socket.on("message-error", handleMessageError);
 
         return () => {
             socket.off("receive-message", handleReceiveMessage);
@@ -438,6 +456,9 @@ function Chat() {
             socket.off("server-updated", handleServerUpdated);
             socket.off("typing-start", handleTypingStart);
             socket.off("typing-stop", handleTypingStop);
+            socket.off("message-edited", handleMessageEdited);
+            socket.off("message-deleted", handleMessageDeleted);
+            socket.off("message-error", handleMessageError);
         };
     }, [selectedChannel, selectedConversation, selectedServer]);
 
@@ -489,6 +510,29 @@ function Chat() {
         if (!selectedServer || !isSocketConnected) return;
         socket.emit("join-server-room", selectedServer._id);
     }, [selectedServer, isSocketConnected]);
+
+    const handleEditMessage = (messageId, content) => {
+        const trimmedContent = content.trim();
+        if (!trimmedContent) return;
+        
+        console.log("[EDIT FRONTEND] Sending edit:", {
+            messageId,
+            content: trimmedContent,
+            socketConnected: socket.connected
+        });
+        
+        socket.emit("edit-message", { messageId, content: trimmedContent });
+    };
+
+    const handleDeleteMessage = (messageId) => {
+        if (window.confirm("Are you sure you want to delete this message?")) {
+            console.log("[DELETE FRONTEND] Sending delete:", {
+                messageId,
+                socketConnected: socket.connected
+            });
+            socket.emit("delete-message", { messageId });
+        }
+    };
 
     const handleSend = async () => {
         const trimmedMessage = message.trim();
@@ -764,7 +808,12 @@ function Chat() {
                         />
                     )}
 
-                    <MessageList messages={messages} />
+                    <MessageList 
+                        messages={messages} 
+                        currentUserId={JSON.parse(localStorage.getItem("user") || "{}")._id}
+                        onEdit={handleEditMessage}
+                        onDelete={handleDeleteMessage}
+                    />
 
                     {typingUsers.length > 0 && (
                         <div style={{ padding: "0 16px", color: "#b9bbbe", fontSize: "14px", fontStyle: "italic", marginBottom: "8px" }}>

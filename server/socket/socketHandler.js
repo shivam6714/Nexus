@@ -124,6 +124,114 @@ const registerSocketHandlers = (io) => {
             }
         });
 
+        socket.on("edit-message", async (data) => {
+            try {
+                const { messageId, content } = data;
+                
+                console.log("[EDIT SOCKET] Received:", {
+                    messageId,
+                    content,
+                    userId: socket.user._id.toString()
+                });
+
+                if (!messageId || content === undefined) {
+                    return socket.emit("message-error", { success: false, message: "Message ID and content are required." });
+                }
+                
+                const trimmedContent = content.trim();
+                if (!trimmedContent) {
+                    return socket.emit("message-error", { success: false, message: "Content cannot be empty." });
+                }
+
+                const message = await Message.findById(messageId);
+                
+                console.log("[EDIT SOCKET] Found message:", message);
+
+                if (!message) {
+                    return socket.emit("message-error", { success: false, message: "Message not found." });
+                }
+
+                if (message.sender.toString() !== socket.user._id.toString()) {
+                    return socket.emit("message-error", { success: false, message: "Not authorized to edit this message." });
+                }
+
+                message.content = trimmedContent;
+                message.edited = true;
+                await message.save();
+
+                const populatedMessage = await message.populate("sender", "username avatar");
+
+                console.log("[EDIT SOCKET] Broadcasting edited message:", {
+                    messageId: populatedMessage._id,
+                    channel: message.channel,
+                    conversation: message.conversation
+                });
+
+                if (message.channel) {
+                    io.to(message.channel.toString()).emit("message-edited", populatedMessage);
+                } else if (message.conversation) {
+                    const latestMessage = await Message.findOne({ conversation: message.conversation }).sort({ createdAt: -1 });
+                    if (latestMessage && latestMessage._id.toString() === message._id.toString()) {
+                        await Conversation.updateOne(
+                            { _id: message.conversation },
+                            { $set: { lastMessagePreview: trimmedContent } }
+                        );
+                    }
+                    io.to(`dm-${message.conversation.toString()}`).emit("message-edited", populatedMessage);
+                }
+            } catch (error) {
+                console.error("Edit Message Error:", error);
+                socket.emit("message-error", { success: false, message: "Failed to edit message." });
+            }
+        });
+
+        socket.on("delete-message", async (data) => {
+            try {
+                const { messageId } = data;
+                
+                console.log("[DELETE SOCKET] Received:", {
+                    messageId,
+                    userId: socket.user._id.toString()
+                });
+
+                if (!messageId) {
+                    return socket.emit("message-error", { success: false, message: "Message ID is required." });
+                }
+
+                const message = await Message.findById(messageId);
+                
+                console.log("[DELETE SOCKET] Found message:", message);
+
+                if (!message) {
+                    return socket.emit("message-error", { success: false, message: "Message not found." });
+                }
+
+                if (message.sender.toString() !== socket.user._id.toString()) {
+                    return socket.emit("message-error", { success: false, message: "Not authorized to delete this message." });
+                }
+
+                const channelId = message.channel;
+                const conversationId = message.conversation;
+
+                await message.deleteOne();
+
+                console.log("[DELETE SOCKET] Broadcasting deletion:", {
+                    messageId,
+                    channel: channelId,
+                    conversation: conversationId
+                });
+
+                if (channelId) {
+                    io.to(channelId.toString()).emit("message-deleted", { messageId });
+                } else if (conversationId) {
+                    io.to(`dm-${conversationId.toString()}`).emit("message-deleted", { messageId });
+                }
+            } catch (error) {
+                console.error("Delete Message Error:", error);
+                socket.emit("message-error", { success: false, message: "Failed to delete message." });
+            }
+        });
+
         socket.on("join-server-room", (serverId) => {
             socket.join(`server-${serverId}`);
             console.log(`${socket.user.username} joined server room server-${serverId}`);
