@@ -41,6 +41,21 @@ function DMSidebar({
                                     </span>
                                 )}
                             </div>
+                            {conv.unreadCount > 0 && (
+                                <div style={{
+                                    marginLeft: 'auto',
+                                    backgroundColor: '#f23f42',
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold',
+                                    borderRadius: '12px',
+                                    padding: '2px 6px',
+                                    minWidth: '16px',
+                                    textAlign: 'center'
+                                }}>
+                                    {conv.unreadCount}
+                                </div>
+                            )}
                         </button>
                     ))
                 )}

@@ -320,15 +320,31 @@ function Chat() {
         };
 
         const handleReceiveDM = (message) => {
-            if (selectedConversation && message.conversation === selectedConversation._id) {
+            const isActiveConversation = selectedConversation && message.conversation === selectedConversation._id;
+
+            if (isActiveConversation) {
                 setMessages((prev) => [...prev, message]);
+                if (socket.connected) {
+                    socket.emit("mark-dm-read", selectedConversation._id);
+                }
             }
+
             // Update conversations list
             setConversations((prev) => {
                 const convIndex = prev.findIndex(c => c.conversationId === message.conversation);
                 if (convIndex > -1) {
                     const conv = prev[convIndex];
-                    const updatedConv = { ...conv, lastMessagePreview: message.content, lastMessageAt: new Date().toISOString() };
+                    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+                    const isSender = message.sender._id === currentUser._id || message.sender === currentUser._id;
+                    
+                    let newUnreadCount = conv.unreadCount || 0;
+                    if (!isActiveConversation && !isSender) {
+                        newUnreadCount += 1;
+                    } else if (isActiveConversation) {
+                        newUnreadCount = 0;
+                    }
+
+                    const updatedConv = { ...conv, lastMessagePreview: message.content, lastMessageAt: new Date().toISOString(), unreadCount: newUnreadCount };
                     const newConvs = [...prev];
                     newConvs.splice(convIndex, 1);
                     newConvs.unshift(updatedConv);
@@ -449,6 +465,13 @@ function Chat() {
         if (!selectedConversation || !isSocketConnected) return;
 
         socket.emit("join-dm-room", selectedConversation._id);
+        socket.emit("mark-dm-read", selectedConversation._id);
+
+        setConversations(prev => prev.map(c => 
+            c.conversationId === selectedConversation._id 
+                ? { ...c, unreadCount: 0 } 
+                : c
+        ));
 
         return () => {
             socket.emit("leave-dm-room", selectedConversation._id);

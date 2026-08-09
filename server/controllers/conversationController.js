@@ -28,6 +28,10 @@ const getOrCreateConversation = async (req, res) => {
         if (!conversation) {
             conversation = await Conversation.create({
                 participants: [currentUserId, userId],
+                unreadCounts: {
+                    [currentUserId.toString()]: 0,
+                    [userId.toString()]: 0,
+                }
             });
         }
         return res.status(200).json({
@@ -64,6 +68,7 @@ const getConversations = async (req, res) => {
                 otherParticipant: otherParticipant || conv.participants[0], // fallback if it's a self-dm
                 lastMessagePreview: conv.lastMessagePreview,
                 lastMessageAt: conv.lastMessageAt,
+                unreadCount: conv.unreadCounts?.get(currentUserId.toString()) || 0,
             };
         });
 

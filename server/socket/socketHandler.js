@@ -77,9 +77,24 @@ const registerSocketHandlers = (io) => {
 
                 const populatedMessage = await message.populate("sender", "username avatar");
 
-                conversation.lastMessagePreview = content;
-                conversation.lastMessageAt = new Date();
-                await conversation.save();
+                const receiverId = conversation.participants.find(
+                    (pId) => pId.toString() !== socket.user._id.toString()
+                );
+
+                const updateQuery = {
+                    $set: {
+                        lastMessagePreview: content,
+                        lastMessageAt: new Date()
+                    }
+                };
+
+                if (receiverId) {
+                    updateQuery.$inc = {
+                        [`unreadCounts.${receiverId.toString()}`]: 1
+                    };
+                }
+
+                await Conversation.updateOne({ _id: conversation._id }, updateQuery);
 
                 // Emit to all participants
                 conversation.participants.forEach((participantId) => {
@@ -92,6 +107,20 @@ const registerSocketHandlers = (io) => {
                 });
             } catch (error) {
                 console.error("DM Socket Error:", error);
+            }
+        });
+
+        socket.on("mark-dm-read", async (conversationId) => {
+            try {
+                const conversation = await Conversation.findById(conversationId);
+                if (conversation && conversation.participants.includes(socket.user._id)) {
+                    await Conversation.updateOne(
+                        { _id: conversationId },
+                        { $set: { [`unreadCounts.${socket.user._id.toString()}`]: 0 } }
+                    );
+                }
+            } catch (error) {
+                console.error("Mark DM Read Error:", error);
             }
         });
 
