@@ -76,6 +76,7 @@ function Chat() {
     const voiceLocalStreamRef = useRef(null);
     const [isVoiceMuted, setIsVoiceMuted] = useState(false);
     const [voiceStreamsUpdate, setVoiceStreamsUpdate] = useState(0);
+    const [voiceConnectionState, setVoiceConnectionState] = useState("idle"); // idle, connecting, connected, disconnected
 
     // Call state
     const [callState, _setCallState] = useState("idle"); // idle, calling, incoming, connected
@@ -142,6 +143,7 @@ function Chat() {
         setActiveVoiceChannel(null);
         setVoiceParticipants([]);
         setIsVoiceMuted(false);
+        setVoiceConnectionState("idle");
     };
 
     const toggleVoiceMute = () => {
@@ -656,6 +658,7 @@ function Chat() {
                 }
                 
                 setVoiceParticipants(participantObjs);
+                setVoiceConnectionState("connected");
 
                 // Initiate WebRTC offers to existing participants
                 for (const uid of users) {
@@ -785,6 +788,12 @@ function Chat() {
             leaveVoiceChannel();
         };
 
+        const handleDisconnect = () => {
+            if (activeVoiceChannel) {
+                setVoiceConnectionState("disconnected");
+            }
+        };
+
         socket.on("voice-channel-users", handleVoiceUsers);
         socket.on("voice-user-joined", handleVoiceUserJoined);
         socket.on("voice-user-left", handleVoiceUserLeft);
@@ -793,6 +802,7 @@ function Chat() {
         socket.on("voice-webrtc-answer", handleVoiceAnswer);
         socket.on("voice-ice-candidate", handleVoiceIceCandidate);
         socket.on("voice-mute-toggled", handleVoiceMuteToggled);
+        socket.on("disconnect", handleDisconnect);
 
         return () => {
             socket.off("voice-channel-users", handleVoiceUsers);
@@ -803,6 +813,7 @@ function Chat() {
             socket.off("voice-webrtc-answer", handleVoiceAnswer);
             socket.off("voice-ice-candidate", handleVoiceIceCandidate);
             socket.off("voice-mute-toggled", handleVoiceMuteToggled);
+            socket.off("disconnect", handleDisconnect);
         };
     }, [activeVoiceChannel, members, isVoiceMuted]);
 
@@ -1383,6 +1394,7 @@ function Chat() {
         // Set new active voice channel
         setActiveVoiceChannel(channel);
         setVoiceParticipants([]);
+        setVoiceConnectionState("connecting");
         
         if (socket.connected) {
             socket.emit("join-voice-channel", {
@@ -1580,7 +1592,9 @@ function Chat() {
                         isVoiceMuted={isVoiceMuted}
                         onToggleVoiceMute={toggleVoiceMute}
                         voiceRemoteStreamsRef={voiceRemoteStreamsRef}
+                        voiceLocalStreamRef={voiceLocalStreamRef}
                         voiceStreamsUpdate={voiceStreamsUpdate}
+                        voiceConnectionState={voiceConnectionState}
                     />
                 )}
 

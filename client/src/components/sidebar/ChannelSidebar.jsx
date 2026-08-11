@@ -14,10 +14,13 @@ function ChannelSidebar({
     isVoiceMuted,
     onToggleVoiceMute,
     voiceRemoteStreamsRef,
-    voiceStreamsUpdate
+    voiceLocalStreamRef,
+    voiceStreamsUpdate,
+    voiceConnectionState
 }) {
     const textChannels = channels.filter(c => c.type === "text" || !c.type);
     const voiceChannels = channels.filter(c => c.type === "voice");
+    const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
 
     return (
         <aside className="channel-sidebar">
@@ -79,7 +82,15 @@ function ChannelSidebar({
                                         onClick={() => onSelectVoiceChannel(channel)}
                                         style={{ display: "flex", alignItems: "center", gap: "6px" }}
                                     >
-                                        <Volume2 size={18} /> {channel.name}
+                                        <Volume2 size={18} /> 
+                                        <span style={{ flex: 1, textAlign: "left", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                                            {channel.name}
+                                        </span>
+                                        {activeVoiceChannel?._id === channel._id && (
+                                            <span style={{ fontSize: "11px", backgroundColor: "#1e1f22", padding: "2px 6px", borderRadius: "12px", color: "#b9bbbe", fontWeight: "bold" }}>
+                                                {voiceParticipants.length}
+                                            </span>
+                                        )}
                                     </button>
                                     
                                     {activeVoiceChannel?._id === channel._id && (
@@ -88,25 +99,10 @@ function ChannelSidebar({
                                                 <VoiceParticipant 
                                                     key={p.userId} 
                                                     participant={p} 
-                                                    stream={voiceRemoteStreamsRef?.current?.get(p.userId)} 
+                                                    stream={p.userId === currentUserId ? voiceLocalStreamRef?.current : voiceRemoteStreamsRef?.current?.get(p.userId)} 
+                                                    isLocal={p.userId === currentUserId}
                                                 />
                                             ))}
-                                            
-                                            <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); onToggleVoiceMute(); }}
-                                                    style={{ flex: 1, background: "none", border: "1px solid #4f545c", color: isVoiceMuted ? "#da373c" : "#b9bbbe", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
-                                                >
-                                                    {isVoiceMuted ? <MicOff size={14} /> : <Mic size={14} />} 
-                                                    {isVoiceMuted ? "Unmute" : "Mute"}
-                                                </button>
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); onLeaveVoiceChannel(); }}
-                                                    style={{ flex: 1, background: "none", border: "1px solid #da373c", color: "#da373c", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
-                                                >
-                                                    <PhoneOff size={14} /> Leave
-                                                </button>
-                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -115,6 +111,36 @@ function ChannelSidebar({
                     </div>
                 )}
             </div>
+            
+            {/* Voice Status Panel */}
+            {activeVoiceChannel && (
+                <div style={{ marginTop: "auto", borderTop: "1px solid #1e1f22", padding: "12px", backgroundColor: "#232428", flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", fontSize: "13px", fontWeight: "bold" }}>
+                        {voiceConnectionState === "connected" && <span style={{ color: "#23a559" }}>🟢 Voice Connected</span>}
+                        {voiceConnectionState === "connecting" && <span style={{ color: "#f0b232" }}>🟡 Connecting...</span>}
+                        {voiceConnectionState === "disconnected" && <span style={{ color: "#da373c" }}>🔴 Disconnected</span>}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#23a559", fontSize: "13px", marginBottom: "12px", fontWeight: "500" }}>
+                        <Volume2 size={16} /> <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{activeVoiceChannel.name}</span>
+                    </div>
+                    
+                    <div style={{ display: "flex", gap: "8px" }}>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onToggleVoiceMute(); }}
+                            style={{ flex: 1, background: "#2b2d31", border: "none", color: isVoiceMuted ? "#da373c" : "#b9bbbe", padding: "8px", borderRadius: "4px", fontSize: "13px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                        >
+                            {isVoiceMuted ? <MicOff size={16} /> : <Mic size={16} />} 
+                            {isVoiceMuted ? "Unmute" : "Mute"}
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onLeaveVoiceChannel(); }}
+                            style={{ flex: 1, background: "#2b2d31", border: "none", color: "#da373c", padding: "8px", borderRadius: "4px", fontSize: "13px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                        >
+                            <PhoneOff size={16} /> Leave
+                        </button>
+                    </div>
+                </div>
+            )}
         </aside>
     );
 }
