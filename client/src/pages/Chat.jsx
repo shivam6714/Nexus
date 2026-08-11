@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowDown, Phone, PhoneOff, Mic, MicOff } from "lucide-react";
+import { ArrowDown, Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
 import api from "../services/api";
@@ -65,16 +65,22 @@ function Chat() {
     const isTypingRef = useRef(false);
     const activeRoomRef = useRef({ conversationId: null, channelId: null });
 
+    // Server Voice State
+    const [activeVoiceChannel, setActiveVoiceChannel] = useState(null);
+    const [voiceParticipants, setVoiceParticipants] = useState([]);
+
     // Call state
     const [callState, _setCallState] = useState("idle"); // idle, calling, incoming, connected
     const [activeCall, _setActiveCall] = useState(null);
     const [isMuted, setIsMuted] = useState(false);
+    const [isCameraOn, setIsCameraOn] = useState(false);
 
     const callStateRef = useRef("idle");
     const activeCallRef = useRef(null);
     const peerConnectionRef = useRef(null);
     const localStreamRef = useRef(null);
-    const remoteAudioRef = useRef(null);
+    const remoteVideoRef = useRef(null);
+    const localVideoRef = useRef(null);
 
     const setCallState = (newState) => {
         callStateRef.current = newState;
@@ -87,6 +93,7 @@ function Chat() {
     };
 
     const cleanupCall = () => {
+        console.log("[CALLER] CLEANUP CALL");
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
@@ -95,27 +102,56 @@ function Chat() {
             peerConnectionRef.current.close();
             peerConnectionRef.current = null;
         }
-        if (remoteAudioRef.current) {
-            remoteAudioRef.current.srcObject = null;
+        if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = null;
+        }
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject = null;
         }
         setCallState("idle");
         setActiveCall(null);
         setIsMuted(false);
+        setIsCameraOn(false);
     };
 
-    const startCall = (user) => {
+    const leaveVoiceChannel = () => {
+        if (activeVoiceChannel && socket.connected) {
+            socket.emit("leave-voice-channel", {
+                channelId: activeVoiceChannel._id
+            });
+        }
+        setActiveVoiceChannel(null);
+        setVoiceParticipants([]);
+    };
+
+    const startCall = (user, callType = "voice") => {
         if (!selectedConversation || !socket.connected) return;
+        
+        console.log(`[CALLER] START ${callType.toUpperCase()}`);
+        const isVideo = callType === "video";
+        setIsCameraOn(isVideo);
+        
+        console.log("[CALLER] Setting calling state");
         setCallState("calling");
         setActiveCall({
             conversationId: selectedConversation._id,
             callerId: JSON.parse(localStorage.getItem("user") || "{}")._id,
+            callerUsername: JSON.parse(localStorage.getItem("user") || "{}").username,
+            callerAvatar: JSON.parse(localStorage.getItem("user") || "{}").avatar,
             targetUserId: user._id,
             targetUsername: user.username,
-            targetAvatar: user.avatar
+            targetAvatar: user.avatar,
+            callType
+        });
+        console.log("[CALL] Sending call-user:", {
+            conversationId: selectedConversation._id,
+            targetUserId: user._id,
+            callType
         });
         socket.emit("call-user", {
             conversationId: selectedConversation._id,
-            targetUserId: user._id
+            targetUserId: user._id,
+            callType
         });
     };
 
@@ -126,6 +162,7 @@ function Chat() {
 
         pc.onicecandidate = (event) => {
             if (event.candidate && socket.connected) {
+                console.log("[WEBRTC] ICE candidate");
                 socket.emit("ice-candidate", {
                     targetUserId,
                     candidate: event.candidate,
@@ -135,8 +172,14 @@ function Chat() {
         };
 
         pc.ontrack = (event) => {
-            if (remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = event.streams[0];
+            console.log("[WEBRTC] Receiver remote track:", event.track.kind);
+            if (remoteVideoRef.current) {
+                if (remoteVideoRef.current.srcObject !== event.streams[0]) {
+                    remoteVideoRef.current.srcObject = event.streams[0];
+                }
+                remoteVideoRef.current.play().catch(err => {
+                    console.log("Could not auto-play remote video:", err);
+                });
             }
         };
 
@@ -147,13 +190,17 @@ function Chat() {
     const acceptCall = async () => {
         if (!activeCallRef.current || !socket.connected) return;
         try {
+            console.log("[CALL] Accepting call:", activeCallRef.current);
+            const isVideo = activeCallRef.current.callType === "video";
+            setIsCameraOn(isVideo);
+            
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true
                 }, 
-                video: false 
+                video: isVideo 
             });
             localStreamRef.current = stream;
             
@@ -167,7 +214,16 @@ function Chat() {
             const pc = createPeerConnection(activeCallRef.current.callerId, activeCallRef.current.conversationId);
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
         } catch (err) {
-            console.error("Failed to get microphone", err);
+            console.error("Failed to get microphone/camera", err);
+            if (err.name === "NotReadableError") {
+                alert("Camera or microphone is unavailable. It may already be in use by another application or browser tab.");
+            } else if (err.name === "NotAllowedError") {
+                alert("Camera/microphone permission was denied.");
+            } else if (err.name === "NotFoundError") {
+                alert("No camera or microphone was found.");
+            } else {
+                alert("Failed to access media devices: " + err.message);
+            }
             cleanupCall();
         }
     };
@@ -203,6 +259,23 @@ function Chat() {
             }
         }
     };
+
+    const toggleCamera = () => {
+        if (localStreamRef.current) {
+            const videoTrack = localStreamRef.current.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsCameraOn(videoTrack.enabled);
+            }
+        }
+    };
+
+    // Attach local video stream when element mounts
+    useEffect(() => {
+        if (callState === "connected" && activeCall?.callType === "video" && localVideoRef.current && localStreamRef.current) {
+            localVideoRef.current.srcObject = localStreamRef.current;
+        }
+    }, [callState, activeCall?.callType]);
 
     // Cleanup call on unmount
     useEffect(() => {
@@ -470,6 +543,76 @@ function Chat() {
         };
     }, []);
 
+    // Voice Channel Listeners
+    useEffect(() => {
+        const handleVoiceUsers = (data) => {
+            const { channelId, users } = data;
+            if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
+                const currentUserString = localStorage.getItem("user") || "{}";
+                const currentUser = JSON.parse(currentUserString);
+                const currentUserId = currentUser._id;
+                const currentUsername = currentUser.username;
+                const currentAvatar = currentUser.avatar;
+                
+                const participantObjs = users.map(uid => {
+                    const memberObj = members.find(m => m._id === uid);
+                    return {
+                        userId: uid,
+                        username: memberObj ? memberObj.username : "Unknown User",
+                        avatar: memberObj ? memberObj.avatar : ""
+                    };
+                });
+
+                // Add the current user manually
+                const alreadyHasMe = participantObjs.some(p => p.userId === currentUserId);
+                if (!alreadyHasMe) {
+                    participantObjs.push({
+                        userId: currentUserId,
+                        username: currentUsername + " (You)",
+                        avatar: currentAvatar
+                    });
+                }
+                
+                setVoiceParticipants(participantObjs);
+            }
+        };
+
+        const handleVoiceUserJoined = (data) => {
+            const { channelId, userId, username, avatar } = data;
+            if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
+                setVoiceParticipants(prev => {
+                    if (prev.some(p => p.userId === userId)) return prev;
+                    return [...prev, { userId, username, avatar }];
+                });
+            }
+        };
+
+        const handleVoiceUserLeft = (data) => {
+            const { channelId, userId } = data;
+            if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
+                setVoiceParticipants(prev => prev.filter(p => p.userId !== userId));
+            }
+        };
+
+        const handleVoiceError = (data) => {
+            alert("Voice Error: " + data.message);
+            setActiveVoiceChannel(null);
+            setVoiceParticipants([]);
+        };
+
+        socket.on("voice-channel-users", handleVoiceUsers);
+        socket.on("voice-user-joined", handleVoiceUserJoined);
+        socket.on("voice-user-left", handleVoiceUserLeft);
+        socket.on("voice-error", handleVoiceError);
+
+        return () => {
+            socket.off("voice-channel-users", handleVoiceUsers);
+            socket.off("voice-user-joined", handleVoiceUserJoined);
+            socket.off("voice-user-left", handleVoiceUserLeft);
+            socket.off("voice-error", handleVoiceError);
+        };
+    }, [activeVoiceChannel, members]);
+
     // Dynamic socket listeners for current view
     useEffect(() => {
         const handleReceiveMessage = (message) => {
@@ -633,25 +776,31 @@ function Chat() {
         };
 
         const handleIncomingCall = (payload) => {
+            console.log("[CALL] RECEIVED incoming-call:", payload);
             if (callStateRef.current === "idle") {
+                console.log("[CALL] Receiver activeCall:", payload);
                 setActiveCall(payload);
                 setCallState("incoming");
             }
         };
 
         const handleCallAccepted = async (payload) => {
+            console.log("[CALL] Caller received call-accepted:", payload);
+            console.log("[CALLER] RECEIVED call-accepted");
             if (callStateRef.current !== "calling" || !activeCallRef.current) return;
             try {
+                const isVideo = activeCallRef.current.callType === "video";
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
                         autoGainControl: true
                     }, 
-                    video: false 
+                    video: isVideo 
                 });
                 localStreamRef.current = stream;
                 
+                console.log("[CALLER] Setting connected state");
                 setCallState("connected");
                 
                 const pc = createPeerConnection(activeCallRef.current.targetUserId, activeCallRef.current.conversationId);
@@ -660,6 +809,7 @@ function Chat() {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 
+                console.log("[WEBRTC] Sending offer");
                 socket.emit("webrtc-offer", {
                     targetUserId: activeCallRef.current.targetUserId,
                     conversationId: activeCallRef.current.conversationId,
@@ -667,11 +817,21 @@ function Chat() {
                 });
             } catch (err) {
                 console.error("Failed to setup WebRTC as caller", err);
+                if (err.name === "NotReadableError") {
+                    alert("Camera or microphone is unavailable. It may already be in use by another application or browser tab.");
+                } else if (err.name === "NotAllowedError") {
+                    alert("Camera/microphone permission was denied.");
+                } else if (err.name === "NotFoundError") {
+                    alert("No camera or microphone was found.");
+                } else {
+                    alert("Failed to access media devices: " + err.message);
+                }
                 cleanupCall();
             }
         };
 
         const handleCallRejected = (payload) => {
+            console.log("[CALLER] CALL ENDED/REJECTED (rejected)");
             if (activeCallRef.current && activeCallRef.current.conversationId === payload.conversationId) {
                 if (payload.reason === "User is offline") {
                     alert("User is offline");
@@ -681,18 +841,21 @@ function Chat() {
         };
 
         const handleCallEnded = (payload) => {
+            console.log("[CALLER] CALL ENDED/REJECTED (ended)");
             if (activeCallRef.current && activeCallRef.current.conversationId === payload.conversationId) {
                 cleanupCall();
             }
         };
 
         const handleWebRTCOffer = async (payload) => {
+            console.log("[WEBRTC] Receiver got offer");
             if (callStateRef.current !== "connected" || !peerConnectionRef.current) return;
             try {
                 await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
                 const answer = await peerConnectionRef.current.createAnswer();
                 await peerConnectionRef.current.setLocalDescription(answer);
                 
+                console.log("[WEBRTC] Sending answer");
                 socket.emit("webrtc-answer", {
                     targetUserId: payload.callerId,
                     conversationId: payload.conversationId,
@@ -704,6 +867,7 @@ function Chat() {
         };
 
         const handleWebRTCAnswer = async (payload) => {
+            console.log("[WEBRTC] Caller received answer");
             if (callStateRef.current !== "connected" || !peerConnectionRef.current) return;
             try {
                 await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
@@ -986,6 +1150,27 @@ function Chat() {
         }
     };
 
+    const handleSelectVoiceChannel = (channel) => {
+        if (activeVoiceChannel && activeVoiceChannel._id === channel._id) {
+            return; // Already in this voice channel
+        }
+        
+        // If we were in another voice channel, leave it first
+        if (activeVoiceChannel) {
+            leaveVoiceChannel();
+        }
+
+        // Set new active voice channel
+        setActiveVoiceChannel(channel);
+        setVoiceParticipants([]);
+        
+        if (socket.connected) {
+            socket.emit("join-voice-channel", {
+                channelId: channel._id
+            });
+        }
+    };
+
     const handleRenameServer = async (newName) => {
         if (!selectedServer) return;
         try {
@@ -1165,6 +1350,10 @@ function Chat() {
                             console.log("Channel + clicked");
                             setActiveModal("createChannel");
                         }}
+                        activeVoiceChannel={activeVoiceChannel}
+                        voiceParticipants={voiceParticipants}
+                        onSelectVoiceChannel={handleSelectVoiceChannel}
+                        onLeaveVoiceChannel={leaveVoiceChannel}
                     />
                 )}
 
@@ -1174,13 +1363,22 @@ function Chat() {
                             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                 <span>DM with {dmUser ? dmUser.username : "User"}</span>
                                 {callState === "idle" && (
-                                    <button
-                                        onClick={() => startCall(dmUser)}
-                                        style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", display: "flex", alignItems: "center", padding: "4px" }}
-                                        title="Start Voice Call"
-                                    >
-                                        <Phone size={18} />
-                                    </button>
+                                    <>
+                                        <button
+                                            onClick={() => startCall(dmUser, "voice")}
+                                            style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", display: "flex", alignItems: "center", padding: "4px" }}
+                                            title="Start Voice Call"
+                                        >
+                                            <Phone size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => startCall(dmUser, "video")}
+                                            style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", display: "flex", alignItems: "center", padding: "4px" }}
+                                            title="Start Video Call"
+                                        >
+                                            <Video size={18} />
+                                        </button>
+                                    </>
                                 )}
                             </div>
                             {notificationPermission === "default" && (
@@ -1311,7 +1509,7 @@ function Chat() {
                         position: "absolute",
                         top: "20px",
                         right: "20px",
-                        width: "280px",
+                        width: activeCall.callType === "video" && callState === "connected" ? "320px" : "280px",
                         backgroundColor: "#2b2d31",
                         border: "1px solid #1e1f22",
                         borderRadius: "8px",
@@ -1323,10 +1521,17 @@ function Chat() {
                         flexDirection: "column",
                         alignItems: "center"
                     }}>
-                        <audio ref={remoteAudioRef} autoPlay style={{ display: "none" }} />
+                        <video ref={remoteVideoRef} autoPlay playsInline style={{ display: activeCall.callType === "video" && callState === "connected" ? "block" : "none", width: "100%", borderRadius: "8px", backgroundColor: "#111214", marginBottom: "16px" }} />
+                        
+                        {activeCall.callType === "video" && callState === "connected" && (
+                            <div style={{ position: "absolute", bottom: "80px", right: "24px", width: "80px", height: "60px", backgroundColor: "#1e1f22", borderRadius: "4px", overflow: "hidden", border: "2px solid #2b2d31" }}>
+                                <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover", display: isCameraOn ? "block" : "none" }} />
+                                {!isCameraOn && <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#b9bbbe" }}><VideoOff size={24} /></div>}
+                            </div>
+                        )}
                         
                         <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
-                            {callState === "incoming" ? `Incoming Call` : activeCall.targetUsername || activeCall.callerUsername || "User"}
+                            {callState === "incoming" ? `Incoming ${activeCall.callType === "video" ? "Video " : ""}Call` : activeCall.targetUsername || activeCall.callerUsername || "User"}
                         </div>
                         
                         <div style={{ fontSize: "14px", color: "#b9bbbe", marginBottom: "16px" }}>
@@ -1369,6 +1574,15 @@ function Chat() {
                                     >
                                         {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
                                     </button>
+                                    {activeCall.callType === "video" && (
+                                        <button 
+                                            onClick={toggleCamera}
+                                            style={{ backgroundColor: !isCameraOn ? "#da373c" : "#4e5058", color: "white", border: "none", padding: "8px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "40px", height: "40px" }}
+                                            title={isCameraOn ? "Turn Camera Off" : "Turn Camera On"}
+                                        >
+                                            {!isCameraOn ? <VideoOff size={20} /> : <Video size={20} />}
+                                        </button>
+                                    )}
                                     <button 
                                         onClick={endCall}
                                         style={{ backgroundColor: "#da373c", color: "white", border: "none", padding: "8px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "40px", height: "40px" }}

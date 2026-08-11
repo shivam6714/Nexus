@@ -4,6 +4,11 @@ const Message = require("../models/Message");
 const Conversation = require("../models/Conversation");
 const fs = require("fs");
 const path = require("path");
+const Channel = require("../models/Channel");
+const Server = require("../models/Server");
+
+const voiceRooms = new Map();
+const userVoiceChannel = new Map();
 
 const registerSocketHandlers = (io) => {
     io.on("connection", (socket) => {
@@ -457,7 +462,7 @@ const registerSocketHandlers = (io) => {
         
         socket.on("call-user", async (data) => {
             try {
-                const { conversationId, targetUserId } = data;
+                const { conversationId, targetUserId, callType } = data;
                 
                 const conversation = await Conversation.findById(conversationId);
                 if (!conversation) return;
@@ -476,8 +481,13 @@ const registerSocketHandlers = (io) => {
                     callerId: socket.user._id.toString(),
                     callerUsername: socket.user.username,
                     callerAvatar: socket.user.avatar,
-                    targetUserId
+                    targetUserId,
+                    callType
                 };
+                
+                console.log("[CALL] Incoming call target:", targetUserId);
+                console.log("[CALL] Call type:", callType);
+                console.log("[CALL] Target online:", targetSockets.size, "sockets");
                 
                 targetSockets.forEach(socketId => {
                     io.to(socketId).emit("incoming-call", callerInfo);
@@ -573,6 +583,118 @@ const registerSocketHandlers = (io) => {
             }
         });
 
+        // --- SERVER VOICE EVENTS ---
+        socket.on("join-voice-channel", async (data) => {
+            try {
+                const { channelId } = data;
+                if (!channelId) {
+                    return socket.emit("voice-error", { message: "Voice channel is required." });
+                }
+
+                const channel = await Channel.findById(channelId).populate("server");
+                if (!channel) {
+                    return socket.emit("voice-error", { message: "Voice channel not found." });
+                }
+
+                if (channel.type !== "voice") {
+                    return socket.emit("voice-error", { message: "This is not a voice channel." });
+                }
+
+                const server = channel.server;
+                const isMember = server.members.some(memberId => memberId.toString() === socket.user._id.toString());
+                if (!isMember) {
+                    return socket.emit("voice-error", { message: "You are not a member of this server." });
+                }
+
+                const userId = socket.user._id.toString();
+
+                // Prevent duplicate voice membership
+                if (userVoiceChannel.has(userId)) {
+                    const previousChannelId = userVoiceChannel.get(userId);
+                    if (previousChannelId === channelId) {
+                        return; // Already in this exact channel
+                    }
+                    
+                    // Leave previous channel
+                    socket.leave(`voice-${previousChannelId}`);
+                    const prevRoom = voiceRooms.get(previousChannelId);
+                    if (prevRoom) {
+                        prevRoom.delete(userId);
+                        if (prevRoom.size === 0) {
+                            voiceRooms.delete(previousChannelId);
+                        } else {
+                            socket.to(`voice-${previousChannelId}`).emit("voice-user-left", {
+                                channelId: previousChannelId,
+                                userId
+                            });
+                        }
+                    }
+                }
+
+                // Join new socket room
+                socket.join(`voice-${channelId}`);
+
+                // Update maps
+                if (!voiceRooms.has(channelId)) {
+                    voiceRooms.set(channelId, new Set());
+                }
+                const roomUsers = voiceRooms.get(channelId);
+                
+                // Send current participants to joiner (BEFORE adding them)
+                socket.emit("voice-channel-users", {
+                    channelId,
+                    users: [...roomUsers]
+                });
+
+                // Add to room
+                roomUsers.add(userId);
+                userVoiceChannel.set(userId, channelId);
+
+                // Notify existing participants
+                socket.to(`voice-${channelId}`).emit("voice-user-joined", {
+                    channelId,
+                    userId,
+                    username: socket.user.username,
+                    avatar: socket.user.avatar
+                });
+
+                console.log(`[Voice] ${socket.user.username} joined voice channel ${channelId}`);
+
+            } catch (error) {
+                console.error("Join Voice Channel Error:", error);
+                socket.emit("voice-error", { message: "An error occurred while joining the voice channel." });
+            }
+        });
+
+        socket.on("leave-voice-channel", async (data) => {
+            try {
+                const { channelId } = data;
+                const userId = socket.user._id.toString();
+
+                if (userVoiceChannel.get(userId) === channelId) {
+                    socket.leave(`voice-${channelId}`);
+                    userVoiceChannel.delete(userId);
+
+                    const roomUsers = voiceRooms.get(channelId);
+                    if (roomUsers) {
+                        roomUsers.delete(userId);
+                        if (roomUsers.size === 0) {
+                            voiceRooms.delete(channelId);
+                        } else {
+                            socket.to(`voice-${channelId}`).emit("voice-user-left", {
+                                channelId,
+                                userId
+                            });
+                        }
+                    }
+                    console.log(`[Voice] ${socket.user.username} left voice channel ${channelId}`);
+                }
+            } catch (error) {
+                console.error("Leave Voice Channel Error:", error);
+                socket.emit("voice-error", { message: "An error occurred while leaving the voice channel." });
+            }
+        });
+
         socket.on("disconnect", () => {
             const userSockets = onlineUsers.get(userId);
             if (userSockets) {
@@ -580,6 +702,25 @@ const registerSocketHandlers = (io) => {
                 if (userSockets.size === 0) {
                     onlineUsers.delete(userId);
                 }
+            }
+
+            // Voice Cleanup
+            const voiceChannelId = userVoiceChannel.get(userId);
+            if (voiceChannelId) {
+                userVoiceChannel.delete(userId);
+                const roomUsers = voiceRooms.get(voiceChannelId);
+                if (roomUsers) {
+                    roomUsers.delete(userId);
+                    if (roomUsers.size === 0) {
+                        voiceRooms.delete(voiceChannelId);
+                    } else {
+                        socket.to(`voice-${voiceChannelId}`).emit("voice-user-left", {
+                            channelId: voiceChannelId,
+                            userId
+                        });
+                    }
+                }
+                console.log(`[Voice] ${socket.user.username} left voice channel ${voiceChannelId} due to disconnect`);
             }
 
             io.emit(
