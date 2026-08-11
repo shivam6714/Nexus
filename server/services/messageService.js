@@ -2,9 +2,9 @@ const Message = require("../models/Message");
 const Channel = require("../models/Channel");
 const Server = require("../models/Server");
 
-const createMessageService = async (content, channelId, userId) => {
-    if (!content || !channelId) {
-        throw new Error("Content and channel ID are required");
+const createMessageService = async (content, channelId, userId, attachment = null) => {
+    if ((!content && !attachment) || !channelId) {
+        throw new Error("Content (or attachment) and channel ID are required");
     }
 
     const channel = await Channel.findById(channelId);
@@ -28,9 +28,10 @@ const createMessageService = async (content, channelId, userId) => {
     }
 
     const message = await Message.create({
-        content,
+        content: content || "",
         sender: userId,
         channel: channel._id,
+        attachment: attachment || null,
     });
 
     return await message.populate("sender", "username avatar");

@@ -46,6 +46,8 @@ function Chat() {
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [activeModal, setActiveModal] = useState(null);
     const [selectedConversation, setSelectedConversation] = useState(null);
+    const [replyingTo, setReplyingTo] = useState(null);
+    const [attachment, setAttachment] = useState(null);
     const [conversations, setConversations] = useState([]);
     const [dmUser, setDmUser] = useState(null);
     const [serverInfo, setServerInfo] = useState(null);
@@ -433,6 +435,16 @@ function Chat() {
             console.error("Message Error:", payload.message);
         };
 
+        const handleMessageReactionUpdated = (updatedMessage) => {
+            setMessages(prev =>
+                prev.map(message =>
+                    message._id === updatedMessage._id
+                        ? updatedMessage
+                        : message
+                )
+            );
+        };
+
         socket.on("receive-message", handleReceiveMessage);
         socket.on("receive-dm", handleReceiveDM);
         socket.on("channel-created", handleChannelCreated);
@@ -445,6 +457,7 @@ function Chat() {
         socket.on("message-edited", handleMessageEdited);
         socket.on("message-deleted", handleMessageDeleted);
         socket.on("message-error", handleMessageError);
+        socket.on("message-reaction-updated", handleMessageReactionUpdated);
 
         return () => {
             socket.off("receive-message", handleReceiveMessage);
@@ -459,6 +472,7 @@ function Chat() {
             socket.off("message-edited", handleMessageEdited);
             socket.off("message-deleted", handleMessageDeleted);
             socket.off("message-error", handleMessageError);
+            socket.off("message-reaction-updated", handleMessageReactionUpdated);
         };
     }, [selectedChannel, selectedConversation, selectedServer]);
 
@@ -534,20 +548,47 @@ function Chat() {
         }
     };
 
+    const handleReact = (messageId, emoji) => {
+        const messageToReact = messages.find((m) => m._id === messageId);
+        if (!messageToReact) return;
+
+        const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+        
+        const existingReaction = messageToReact.reactions?.find((r) => r.emoji === emoji);
+        let hasReacted = false;
+
+        if (existingReaction && currentUserId) {
+            hasReacted = existingReaction.users.some(
+                (u) =>
+                    u === currentUserId ||
+                    (u._id && u._id === currentUserId) ||
+                    (u.toString && u.toString() === currentUserId.toString())
+            );
+        }
+
+        if (hasReacted) {
+            socket.emit("remove-reaction", { messageId, emoji });
+        } else {
+            socket.emit("add-reaction", { messageId, emoji });
+        }
+    };
+
     const handleSend = async () => {
         const trimmedMessage = message.trim();
 
-        if (!trimmedMessage) return;
+        if (!trimmedMessage && !attachment) return;
 
         emitTypingStop();
 
-        console.log("Sending:", trimmedMessage);
+        console.log("Sending:", { trimmedMessage, attachment });
 
         if (selectedConversation) {
             if (socket.connected) {
                 socket.emit("send-dm", {
                     content: trimmedMessage,
                     conversationId: selectedConversation._id,
+                    replyTo: replyingTo?._id || null,
+                    attachment: attachment
                 });
             } else {
                 try {
@@ -562,6 +603,8 @@ function Chat() {
                 socket.emit("send-message", {
                     content: trimmedMessage,
                     channelId: selectedChannel._id,
+                    replyTo: replyingTo?._id || null,
+                    attachment: attachment
                 });
             } else {
                 // Fallback to REST for channel message if implemented
@@ -570,6 +613,8 @@ function Chat() {
         }
 
         setMessage("");
+        setReplyingTo(null);
+        setAttachment(null);
     };
 
     const handleStartDM = async (user) => {
@@ -776,6 +821,7 @@ function Chat() {
                 <DMSidebar 
                     conversations={conversations}
                     selectedConversationId={selectedConversation?._id}
+                    onlineUsers={onlineUsers}
                 />
 
                 {selectedServer && (
@@ -813,6 +859,8 @@ function Chat() {
                         currentUserId={JSON.parse(localStorage.getItem("user") || "{}")._id}
                         onEdit={handleEditMessage}
                         onDelete={handleDeleteMessage}
+                        onReply={setReplyingTo}
+                        onReact={handleReact}
                     />
 
                     {typingUsers.length > 0 && (
@@ -824,13 +872,44 @@ function Chat() {
                     )}
 
                     {(selectedChannel || selectedConversation) && (
-                        <MessageInput
-                            message={message}
-                            setMessage={handleTypingChange}
-                            handleSend={handleSend}
-                            channel={selectedChannel}
-                            placeholder={selectedConversation ? `Message @${dmUser ? dmUser.username : "User"}` : undefined}
-                        />
+                        <div style={{ position: "relative" }}>
+                            {replyingTo && (
+                                <div style={{
+                                    backgroundColor: "#2f3136",
+                                    padding: "8px 16px",
+                                    borderTopLeftRadius: "8px",
+                                    borderTopRightRadius: "8px",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    borderBottom: "1px solid #202225",
+                                    color: "#b9bbbe",
+                                    fontSize: "14px"
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
+                                        <span style={{ fontWeight: "bold", flexShrink: 0 }}>Replying to {replyingTo.sender?.username}</span>
+                                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                            {replyingTo.content}
+                                        </span>
+                                    </div>
+                                    <button 
+                                        onClick={() => setReplyingTo(null)}
+                                        style={{ background: "none", border: "none", color: "#dcddde", cursor: "pointer", fontSize: "18px", padding: "0 4px", lineHeight: "1" }}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            )}
+                            <MessageInput
+                                message={message}
+                                setMessage={handleTypingChange}
+                                handleSend={handleSend}
+                                channel={selectedChannel}
+                                placeholder={selectedConversation ? `Message @${dmUser ? dmUser.username : "User"}` : undefined}
+                                onAttachmentChange={setAttachment}
+                                attachment={attachment}
+                            />
+                        </div>
                     )}
                 </ChatArea>
 

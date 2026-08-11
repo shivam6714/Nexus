@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 function DMSidebar({
     conversations,
     selectedConversationId,
+    onlineUsers = [],
 }) {
     const navigate = useNavigate();
 
@@ -19,22 +20,27 @@ function DMSidebar({
                         No conversations yet.
                     </div>
                 ) : (
-                    conversations.map((conv) => (
-                        <button
-                            key={conv.conversationId}
-                            className={`channel-button ${selectedConversationId === conv.conversationId ? "active" : ""}`}
-                            onClick={() => navigate(`/chat/dm/${conv.conversationId}`, { state: { dmUser: conv.otherParticipant } })}
-                            style={{ display: 'flex', alignItems: 'center', gap: '10px', height: 'auto', padding: '8px' }}
-                        >
-                            <img
-                                src={conv.otherParticipant?.avatar ? `http://localhost:5000${conv.otherParticipant.avatar}` : `https://ui-avatars.com/api/?name=${conv.otherParticipant?.username || "User"}&background=random`}
-                                alt={conv.otherParticipant?.username || "User"}
-                                style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
-                            />
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', overflow: 'hidden' }}>
-                                <span style={{ fontWeight: '500', color: selectedConversationId === conv.conversationId ? '#fff' : '#8e9297' }}>
-                                    {conv.otherParticipant?.username || "User"}
-                                </span>
+                    conversations.map((conv) => {
+                        const isOnline = onlineUsers.includes(conv.otherParticipant?._id);
+                        return (
+                            <button
+                                key={conv.conversationId}
+                                className={`channel-button ${selectedConversationId === conv.conversationId ? "active" : ""}`}
+                                onClick={() => navigate(`/chat/dm/${conv.conversationId}`, { state: { dmUser: conv.otherParticipant } })}
+                                style={{ display: 'flex', alignItems: 'center', gap: '10px', height: 'auto', padding: '8px' }}
+                            >
+                                <div style={{ position: 'relative' }}>
+                                    <img
+                                        src={conv.otherParticipant?.avatar ? `http://localhost:5000${conv.otherParticipant.avatar}` : `https://ui-avatars.com/api/?name=${conv.otherParticipant?.username || "User"}&background=random`}
+                                        alt={conv.otherParticipant?.username || "User"}
+                                        style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', overflow: 'hidden' }}>
+                                    <span style={{ fontWeight: '500', color: selectedConversationId === conv.conversationId ? '#fff' : '#8e9297' }}>
+                                        {isOnline ? "🟢 " : "🔴 "}
+                                        {conv.otherParticipant?.username || "User"}
+                                    </span>
                                 {conv.lastMessagePreview && (
                                     <span style={{ fontSize: '12px', color: '#8e9297', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px', textAlign: 'left' }}>
                                         {conv.lastMessagePreview}
@@ -57,7 +63,8 @@ function DMSidebar({
                                 </div>
                             )}
                         </button>
-                    ))
+                    );
+                })
                 )}
             </div>
         </aside>

@@ -6,8 +6,13 @@ const registerSocketHandlers = require("./socket/socketHandler");
 const path = require("path");
 const app = require("./app");
 const connectDB = require("./config/db");
+const express = require("express");
+const uploadRoutes = require("./routes/uploadRoutes");
 
 const PORT = process.env.PORT || 5000;
+
+app.use("/api/upload", uploadRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const server = http.createServer(app);
 

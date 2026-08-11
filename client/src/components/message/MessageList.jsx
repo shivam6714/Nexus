@@ -1,6 +1,6 @@
 import MessageBubble from "./MessageBubble";
 
-function MessageList({ messages, currentUserId, onEdit, onDelete }) {
+function MessageList({ messages, currentUserId, onEdit, onDelete, onReply, onReact }) {
     return (
         <div className="message-list">
             {messages.map((message) => (
@@ -10,6 +10,8 @@ function MessageList({ messages, currentUserId, onEdit, onDelete }) {
                     currentUserId={currentUserId}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onReply={onReply}
+                    onReact={onReact}
                 />
             ))}
         </div>

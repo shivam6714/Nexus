@@ -36,15 +36,38 @@ const registerSocketHandlers = (io) => {
             );
 
             try {
+                const { content, channelId, replyTo, attachment } = data;
+
+                if (replyTo) {
+                    const replyMessage = await Message.findById(replyTo);
+                    if (!replyMessage) {
+                        return socket.emit("message-error", { success: false, message: "Replied message not found." });
+                    }
+                    if (replyMessage.channel?.toString() !== channelId) {
+                        return socket.emit("message-error", { success: false, message: "Cannot reply to a message from another channel." });
+                    }
+                }
+
                 const message = await createMessageService(
-                    data.content,
-                    data.channelId,
-                    socket.user._id
+                    content,
+                    channelId,
+                    socket.user._id,
+                    attachment
                 );
 
-                io.to(data.channelId).emit(
+                if (replyTo) {
+                    message.replyTo = replyTo;
+                    await message.save();
+                }
+
+                const populatedMessage = await message.populate([
+                    { path: "sender", select: "username avatar" },
+                    { path: "replyTo", populate: { path: "sender", select: "username avatar" } }
+                ]);
+
+                io.to(channelId).emit(
                     "receive-message",
-                    message
+                    populatedMessage
                 );
 
                 console.log(
@@ -63,19 +86,34 @@ const registerSocketHandlers = (io) => {
       
         socket.on("send-dm", async (data) => {
             try {
-                const { conversationId, content } = data;
+                const { conversationId, content, replyTo, attachment } = data;
+
+                if (replyTo) {
+                    const replyMessage = await Message.findById(replyTo);
+                    if (!replyMessage) {
+                        return socket.emit("message-error", { success: false, message: "Replied message not found." });
+                    }
+                    if (replyMessage.conversation?.toString() !== conversationId) {
+                        return socket.emit("message-error", { success: false, message: "Cannot reply to a message from another conversation." });
+                    }
+                }
                 
                 const conversation = await Conversation.findById(conversationId);
                 if (!conversation) return;
 
                 const message = await Message.create({
-                    content,
+                    content: content || "",
                     sender: socket.user._id,
                     channel: null,
                     conversation: conversation._id,
+                    replyTo: replyTo || null,
+                    attachment: attachment || null,
                 });
 
-                const populatedMessage = await message.populate("sender", "username avatar");
+                const populatedMessage = await message.populate([
+                    { path: "sender", select: "username avatar" },
+                    { path: "replyTo", populate: { path: "sender", select: "username avatar" } }
+                ]);
 
                 const receiverId = conversation.participants.find(
                     (pId) => pId.toString() !== socket.user._id.toString()
@@ -229,6 +267,101 @@ const registerSocketHandlers = (io) => {
             } catch (error) {
                 console.error("Delete Message Error:", error);
                 socket.emit("message-error", { success: false, message: "Failed to delete message." });
+            }
+        });
+
+        socket.on("add-reaction", async (data) => {
+            try {
+                const { messageId, emoji } = data;
+                
+                if (!messageId || !emoji) {
+                    return socket.emit("message-error", { success: false, message: "Message ID and emoji are required." });
+                }
+
+                const trimmedEmoji = emoji.trim();
+                if (!trimmedEmoji) {
+                    return socket.emit("message-error", { success: false, message: "Emoji cannot be empty." });
+                }
+
+                const message = await Message.findById(messageId);
+                if (!message) {
+                    return socket.emit("message-error", { success: false, message: "Message not found." });
+                }
+
+                const existingReaction = message.reactions.find((r) => r.emoji === trimmedEmoji);
+
+                if (!existingReaction) {
+                    message.reactions.push({
+                        emoji: trimmedEmoji,
+                        users: [socket.user._id]
+                    });
+                } else {
+                    const hasReacted = existingReaction.users.some(
+                        (userId) => userId.toString() === socket.user._id.toString()
+                    );
+                    if (!hasReacted) {
+                        existingReaction.users.push(socket.user._id);
+                    }
+                }
+
+                await message.save();
+
+                const populatedMessage = await message.populate([
+                    { path: "sender", select: "username avatar" },
+                    { path: "replyTo", populate: { path: "sender", select: "username avatar" } }
+                ]);
+
+                if (message.channel) {
+                    io.to(message.channel.toString()).emit("message-reaction-updated", populatedMessage);
+                } else if (message.conversation) {
+                    io.to(`dm-${message.conversation.toString()}`).emit("message-reaction-updated", populatedMessage);
+                }
+            } catch (error) {
+                console.error("Add Reaction Error:", error);
+                socket.emit("message-error", { success: false, message: "Failed to add reaction." });
+            }
+        });
+
+        socket.on("remove-reaction", async (data) => {
+            try {
+                const { messageId, emoji } = data;
+                
+                if (!messageId || !emoji) {
+                    return socket.emit("message-error", { success: false, message: "Message ID and emoji are required." });
+                }
+
+                const message = await Message.findById(messageId);
+                if (!message) {
+                    return socket.emit("message-error", { success: false, message: "Message not found." });
+                }
+
+                const reactionIndex = message.reactions.findIndex((r) => r.emoji === emoji.trim());
+                if (reactionIndex === -1) return;
+
+                const reaction = message.reactions[reactionIndex];
+                reaction.users = reaction.users.filter(
+                    (userId) => userId.toString() !== socket.user._id.toString()
+                );
+
+                if (reaction.users.length === 0) {
+                    message.reactions.splice(reactionIndex, 1);
+                }
+
+                await message.save();
+
+                const populatedMessage = await message.populate([
+                    { path: "sender", select: "username avatar" },
+                    { path: "replyTo", populate: { path: "sender", select: "username avatar" } }
+                ]);
+
+                if (message.channel) {
+                    io.to(message.channel.toString()).emit("message-reaction-updated", populatedMessage);
+                } else if (message.conversation) {
+                    io.to(`dm-${message.conversation.toString()}`).emit("message-reaction-updated", populatedMessage);
+                }
+            } catch (error) {
+                console.error("Remove Reaction Error:", error);
+                socket.emit("message-error", { success: false, message: "Failed to remove reaction." });
             }
         });
 
