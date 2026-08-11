@@ -695,6 +695,65 @@ const registerSocketHandlers = (io) => {
             }
         });
 
+        socket.on("voice-webrtc-offer", (data) => {
+            const { channelId, targetUserId, offer } = data;
+            const senderId = socket.user._id.toString();
+
+            if (userVoiceChannel.get(senderId) !== channelId || userVoiceChannel.get(targetUserId) !== channelId) {
+                return;
+            }
+
+            const targetSockets = onlineUsers.get(targetUserId);
+            if (targetSockets) {
+                targetSockets.forEach(socketId => {
+                    io.to(socketId).emit("voice-webrtc-offer", { channelId, senderUserId: senderId, offer });
+                });
+            }
+        });
+
+        socket.on("voice-webrtc-answer", (data) => {
+            const { channelId, targetUserId, answer } = data;
+            const senderId = socket.user._id.toString();
+
+            if (userVoiceChannel.get(senderId) !== channelId || userVoiceChannel.get(targetUserId) !== channelId) {
+                return;
+            }
+
+            const targetSockets = onlineUsers.get(targetUserId);
+            if (targetSockets) {
+                targetSockets.forEach(socketId => {
+                    io.to(socketId).emit("voice-webrtc-answer", { channelId, senderUserId: senderId, answer });
+                });
+            }
+        });
+
+        socket.on("voice-ice-candidate", (data) => {
+            const { channelId, targetUserId, candidate } = data;
+            const senderId = socket.user._id.toString();
+
+            if (userVoiceChannel.get(senderId) !== channelId || userVoiceChannel.get(targetUserId) !== channelId) {
+                return;
+            }
+
+            const targetSockets = onlineUsers.get(targetUserId);
+            if (targetSockets) {
+                targetSockets.forEach(socketId => {
+                    io.to(socketId).emit("voice-ice-candidate", { channelId, senderUserId: senderId, candidate });
+                });
+            }
+        });
+
+        socket.on("voice-mute-toggled", (data) => {
+            const { channelId, muted } = data;
+            const senderId = socket.user._id.toString();
+
+            if (userVoiceChannel.get(senderId) !== channelId) {
+                return;
+            }
+
+            socket.to(`voice-${channelId}`).emit("voice-mute-toggled", { channelId, userId: senderId, muted });
+        });
+
         socket.on("disconnect", () => {
             const userSockets = onlineUsers.get(userId);
             if (userSockets) {

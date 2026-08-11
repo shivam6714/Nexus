@@ -68,6 +68,14 @@ function Chat() {
     // Server Voice State
     const [activeVoiceChannel, setActiveVoiceChannel] = useState(null);
     const [voiceParticipants, setVoiceParticipants] = useState([]);
+    
+    // Server Voice WebRTC
+    const voicePeerConnectionsRef = useRef(new Map());
+    const voiceRemoteStreamsRef = useRef(new Map());
+    const pendingVoiceIceCandidatesRef = useRef(new Map());
+    const voiceLocalStreamRef = useRef(null);
+    const [isVoiceMuted, setIsVoiceMuted] = useState(false);
+    const [voiceStreamsUpdate, setVoiceStreamsUpdate] = useState(0);
 
     // Call state
     const [callState, _setCallState] = useState("idle"); // idle, calling, incoming, connected
@@ -120,8 +128,80 @@ function Chat() {
                 channelId: activeVoiceChannel._id
             });
         }
+        
+        if (voiceLocalStreamRef.current) {
+            voiceLocalStreamRef.current.getTracks().forEach(track => track.stop());
+            voiceLocalStreamRef.current = null;
+        }
+        
+        voicePeerConnectionsRef.current.forEach(pc => pc.close());
+        voicePeerConnectionsRef.current.clear();
+        voiceRemoteStreamsRef.current.clear();
+        pendingVoiceIceCandidatesRef.current.clear();
+        
         setActiveVoiceChannel(null);
         setVoiceParticipants([]);
+        setIsVoiceMuted(false);
+    };
+
+    const toggleVoiceMute = () => {
+        if (voiceLocalStreamRef.current) {
+            const audioTrack = voiceLocalStreamRef.current.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsVoiceMuted(!audioTrack.enabled);
+                
+                if (activeVoiceChannel && socket.connected) {
+                    socket.emit("voice-mute-toggled", {
+                        channelId: activeVoiceChannel._id,
+                        muted: !audioTrack.enabled
+                    });
+                }
+            }
+        }
+    };
+
+    const createVoicePeerConnection = (remoteUserId, channelId) => {
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+        
+        voicePeerConnectionsRef.current.set(remoteUserId, pc);
+        pendingVoiceIceCandidatesRef.current.set(remoteUserId, []);
+
+        if (voiceLocalStreamRef.current) {
+            voiceLocalStreamRef.current.getTracks().forEach(track => {
+                pc.addTrack(track, voiceLocalStreamRef.current);
+            });
+        }
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate && socket.connected) {
+                socket.emit("voice-ice-candidate", {
+                    channelId,
+                    targetUserId: remoteUserId,
+                    candidate: event.candidate
+                });
+            }
+        };
+
+        pc.ontrack = (event) => {
+            console.log(`[VOICE WEBRTC] Received track from ${remoteUserId}`);
+            voiceRemoteStreamsRef.current.set(remoteUserId, event.streams[0]);
+            setVoiceStreamsUpdate(prev => prev + 1);
+        };
+
+        pc.onconnectionstatechange = () => {
+            if (["failed", "closed", "disconnected"].includes(pc.connectionState)) {
+                console.log(`[VOICE WEBRTC] Connection state ${pc.connectionState} for ${remoteUserId}`);
+                pc.close();
+                voicePeerConnectionsRef.current.delete(remoteUserId);
+                voiceRemoteStreamsRef.current.delete(remoteUserId);
+                setVoiceStreamsUpdate(prev => prev + 1);
+            }
+        };
+
+        return pc;
     };
 
     const startCall = (user, callType = "voice") => {
@@ -545,7 +625,7 @@ function Chat() {
 
     // Voice Channel Listeners
     useEffect(() => {
-        const handleVoiceUsers = (data) => {
+        const handleVoiceUsers = async (data) => {
             const { channelId, users } = data;
             if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
                 const currentUserString = localStorage.getItem("user") || "{}";
@@ -559,7 +639,8 @@ function Chat() {
                     return {
                         userId: uid,
                         username: memberObj ? memberObj.username : "Unknown User",
-                        avatar: memberObj ? memberObj.avatar : ""
+                        avatar: memberObj ? memberObj.avatar : "",
+                        isMuted: false
                     };
                 });
 
@@ -569,11 +650,30 @@ function Chat() {
                     participantObjs.push({
                         userId: currentUserId,
                         username: currentUsername + " (You)",
-                        avatar: currentAvatar
+                        avatar: currentAvatar,
+                        isMuted: isVoiceMuted
                     });
                 }
                 
                 setVoiceParticipants(participantObjs);
+
+                // Initiate WebRTC offers to existing participants
+                for (const uid of users) {
+                    if (uid !== currentUserId) {
+                        try {
+                            const pc = createVoicePeerConnection(uid, channelId);
+                            const offer = await pc.createOffer();
+                            await pc.setLocalDescription(offer);
+                            socket.emit("voice-webrtc-offer", {
+                                channelId,
+                                targetUserId: uid,
+                                offer
+                            });
+                        } catch (err) {
+                            console.error("Error creating offer for", uid, err);
+                        }
+                    }
+                }
             }
         };
 
@@ -582,7 +682,7 @@ function Chat() {
             if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
                 setVoiceParticipants(prev => {
                     if (prev.some(p => p.userId === userId)) return prev;
-                    return [...prev, { userId, username, avatar }];
+                    return [...prev, { userId, username, avatar, isMuted: false }];
                 });
             }
         };
@@ -591,27 +691,120 @@ function Chat() {
             const { channelId, userId } = data;
             if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
                 setVoiceParticipants(prev => prev.filter(p => p.userId !== userId));
+                
+                const pc = voicePeerConnectionsRef.current.get(userId);
+                if (pc) {
+                    pc.close();
+                    voicePeerConnectionsRef.current.delete(userId);
+                }
+                voiceRemoteStreamsRef.current.delete(userId);
+                pendingVoiceIceCandidatesRef.current.delete(userId);
+                setVoiceStreamsUpdate(prev => prev + 1);
+            }
+        };
+
+        const handleVoiceOffer = async (data) => {
+            const { channelId, senderUserId, offer } = data;
+            if (!activeVoiceChannel || activeVoiceChannel._id !== channelId) return;
+
+            try {
+                let pc = voicePeerConnectionsRef.current.get(senderUserId);
+                if (!pc) {
+                    pc = createVoicePeerConnection(senderUserId, channelId);
+                }
+                
+                await pc.setRemoteDescription(offer);
+                
+                const pendingCandidates = pendingVoiceIceCandidatesRef.current.get(senderUserId) || [];
+                for (const candidate of pendingCandidates) {
+                    await pc.addIceCandidate(candidate);
+                }
+                pendingVoiceIceCandidatesRef.current.set(senderUserId, []);
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                socket.emit("voice-webrtc-answer", {
+                    channelId,
+                    targetUserId: senderUserId,
+                    answer
+                });
+            } catch (err) {
+                console.error("Error handling voice offer from", senderUserId, err);
+            }
+        };
+
+        const handleVoiceAnswer = async (data) => {
+            const { channelId, senderUserId, answer } = data;
+            if (!activeVoiceChannel || activeVoiceChannel._id !== channelId) return;
+
+            const pc = voicePeerConnectionsRef.current.get(senderUserId);
+            if (pc) {
+                try {
+                    await pc.setRemoteDescription(answer);
+                    const pendingCandidates = pendingVoiceIceCandidatesRef.current.get(senderUserId) || [];
+                    for (const candidate of pendingCandidates) {
+                        await pc.addIceCandidate(candidate);
+                    }
+                    pendingVoiceIceCandidatesRef.current.set(senderUserId, []);
+                } catch (err) {
+                    console.error("Error setting remote description for answer", err);
+                }
+            }
+        };
+
+        const handleVoiceIceCandidate = async (data) => {
+            const { channelId, senderUserId, candidate } = data;
+            if (!activeVoiceChannel || activeVoiceChannel._id !== channelId) return;
+
+            const pc = voicePeerConnectionsRef.current.get(senderUserId);
+            if (pc && pc.remoteDescription) {
+                try {
+                    await pc.addIceCandidate(candidate);
+                } catch (err) {
+                    console.error("Error adding ice candidate", err);
+                }
+            } else {
+                const pending = pendingVoiceIceCandidatesRef.current.get(senderUserId) || [];
+                pending.push(candidate);
+                pendingVoiceIceCandidatesRef.current.set(senderUserId, pending);
+            }
+        };
+
+        const handleVoiceMuteToggled = (data) => {
+            const { channelId, userId, muted } = data;
+            if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
+                setVoiceParticipants(prev => prev.map(p => 
+                    p.userId === userId ? { ...p, isMuted: muted } : p
+                ));
             }
         };
 
         const handleVoiceError = (data) => {
             alert("Voice Error: " + data.message);
-            setActiveVoiceChannel(null);
-            setVoiceParticipants([]);
+            leaveVoiceChannel();
         };
 
         socket.on("voice-channel-users", handleVoiceUsers);
         socket.on("voice-user-joined", handleVoiceUserJoined);
         socket.on("voice-user-left", handleVoiceUserLeft);
         socket.on("voice-error", handleVoiceError);
+        socket.on("voice-webrtc-offer", handleVoiceOffer);
+        socket.on("voice-webrtc-answer", handleVoiceAnswer);
+        socket.on("voice-ice-candidate", handleVoiceIceCandidate);
+        socket.on("voice-mute-toggled", handleVoiceMuteToggled);
 
         return () => {
             socket.off("voice-channel-users", handleVoiceUsers);
             socket.off("voice-user-joined", handleVoiceUserJoined);
             socket.off("voice-user-left", handleVoiceUserLeft);
             socket.off("voice-error", handleVoiceError);
+            socket.off("voice-webrtc-offer", handleVoiceOffer);
+            socket.off("voice-webrtc-answer", handleVoiceAnswer);
+            socket.off("voice-ice-candidate", handleVoiceIceCandidate);
+            socket.off("voice-mute-toggled", handleVoiceMuteToggled);
         };
-    }, [activeVoiceChannel, members]);
+    }, [activeVoiceChannel, members, isVoiceMuted]);
 
     // Dynamic socket listeners for current view
     useEffect(() => {
@@ -1150,7 +1343,7 @@ function Chat() {
         }
     };
 
-    const handleSelectVoiceChannel = (channel) => {
+    const handleSelectVoiceChannel = async (channel) => {
         if (activeVoiceChannel && activeVoiceChannel._id === channel._id) {
             return; // Already in this voice channel
         }
@@ -1158,6 +1351,33 @@ function Chat() {
         // If we were in another voice channel, leave it first
         if (activeVoiceChannel) {
             leaveVoiceChannel();
+        }
+
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: false
+            });
+            voiceLocalStreamRef.current = stream;
+            
+            // Apply current mute state
+            const audioTrack = stream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !isVoiceMuted;
+            }
+        } catch (err) {
+            console.error("Failed to get microphone for voice channel", err);
+            let message = "Failed to access microphone: " + err.message;
+            if (err.name === "NotAllowedError") message = "Microphone permission was denied.";
+            if (err.name === "NotFoundError") message = "No microphone found.";
+            if (err.name === "NotReadableError") message = "Microphone is in use by another application.";
+            alert("Voice Error: " + message);
+            return;
         }
 
         // Set new active voice channel
@@ -1168,6 +1388,9 @@ function Chat() {
             socket.emit("join-voice-channel", {
                 channelId: channel._id
             });
+            if (isVoiceMuted) {
+                socket.emit("voice-mute-toggled", { channelId: channel._id, muted: true });
+            }
         }
     };
 
@@ -1354,6 +1577,10 @@ function Chat() {
                         voiceParticipants={voiceParticipants}
                         onSelectVoiceChannel={handleSelectVoiceChannel}
                         onLeaveVoiceChannel={leaveVoiceChannel}
+                        isVoiceMuted={isVoiceMuted}
+                        onToggleVoiceMute={toggleVoiceMute}
+                        voiceRemoteStreamsRef={voiceRemoteStreamsRef}
+                        voiceStreamsUpdate={voiceStreamsUpdate}
                     />
                 )}
 
