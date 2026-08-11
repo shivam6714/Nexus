@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Phone, PhoneOff, Mic, MicOff } from "lucide-react";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
 import api from "../services/api";
@@ -64,6 +64,152 @@ function Chat() {
     const typingTimeoutRef = useRef(null);
     const isTypingRef = useRef(false);
     const activeRoomRef = useRef({ conversationId: null, channelId: null });
+
+    // Call state
+    const [callState, _setCallState] = useState("idle"); // idle, calling, incoming, connected
+    const [activeCall, _setActiveCall] = useState(null);
+    const [isMuted, setIsMuted] = useState(false);
+
+    const callStateRef = useRef("idle");
+    const activeCallRef = useRef(null);
+    const peerConnectionRef = useRef(null);
+    const localStreamRef = useRef(null);
+    const remoteAudioRef = useRef(null);
+
+    const setCallState = (newState) => {
+        callStateRef.current = newState;
+        _setCallState(newState);
+    };
+
+    const setActiveCall = (newCall) => {
+        activeCallRef.current = newCall;
+        _setActiveCall(newCall);
+    };
+
+    const cleanupCall = () => {
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
+        }
+        if (peerConnectionRef.current) {
+            peerConnectionRef.current.close();
+            peerConnectionRef.current = null;
+        }
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = null;
+        }
+        setCallState("idle");
+        setActiveCall(null);
+        setIsMuted(false);
+    };
+
+    const startCall = (user) => {
+        if (!selectedConversation || !socket.connected) return;
+        setCallState("calling");
+        setActiveCall({
+            conversationId: selectedConversation._id,
+            callerId: JSON.parse(localStorage.getItem("user") || "{}")._id,
+            targetUserId: user._id,
+            targetUsername: user.username,
+            targetAvatar: user.avatar
+        });
+        socket.emit("call-user", {
+            conversationId: selectedConversation._id,
+            targetUserId: user._id
+        });
+    };
+
+    const createPeerConnection = (targetUserId, conversationId) => {
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate && socket.connected) {
+                socket.emit("ice-candidate", {
+                    targetUserId,
+                    candidate: event.candidate,
+                    conversationId
+                });
+            }
+        };
+
+        pc.ontrack = (event) => {
+            if (remoteAudioRef.current) {
+                remoteAudioRef.current.srcObject = event.streams[0];
+            }
+        };
+
+        peerConnectionRef.current = pc;
+        return pc;
+    };
+
+    const acceptCall = async () => {
+        if (!activeCallRef.current || !socket.connected) return;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }, 
+                video: false 
+            });
+            localStreamRef.current = stream;
+            
+            setCallState("connected");
+            
+            socket.emit("accept-call", {
+                conversationId: activeCallRef.current.conversationId,
+                callerId: activeCallRef.current.callerId
+            });
+            
+            const pc = createPeerConnection(activeCallRef.current.callerId, activeCallRef.current.conversationId);
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        } catch (err) {
+            console.error("Failed to get microphone", err);
+            cleanupCall();
+        }
+    };
+
+    const rejectCall = () => {
+        if (!activeCallRef.current || !socket.connected) return;
+        socket.emit("reject-call", {
+            conversationId: activeCallRef.current.conversationId,
+            callerId: activeCallRef.current.callerId
+        });
+        cleanupCall();
+    };
+
+    const endCall = () => {
+        if (!activeCallRef.current || !socket.connected) return;
+        const otherUserId = activeCallRef.current.callerId === JSON.parse(localStorage.getItem("user") || "{}")._id 
+            ? activeCallRef.current.targetUserId 
+            : activeCallRef.current.callerId;
+            
+        socket.emit("end-call", {
+            conversationId: activeCallRef.current.conversationId,
+            targetUserId: otherUserId
+        });
+        cleanupCall();
+    };
+
+    const toggleMute = () => {
+        if (localStreamRef.current) {
+            const audioTrack = localStreamRef.current.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMuted(!audioTrack.enabled);
+            }
+        }
+    };
+
+    // Cleanup call on unmount
+    useEffect(() => {
+        return () => {
+            cleanupCall();
+        };
+    }, []);
 
     useEffect(() => {
         activeRoomRef.current = {
@@ -486,6 +632,96 @@ function Chat() {
             );
         };
 
+        const handleIncomingCall = (payload) => {
+            if (callStateRef.current === "idle") {
+                setActiveCall(payload);
+                setCallState("incoming");
+            }
+        };
+
+        const handleCallAccepted = async (payload) => {
+            if (callStateRef.current !== "calling" || !activeCallRef.current) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }, 
+                    video: false 
+                });
+                localStreamRef.current = stream;
+                
+                setCallState("connected");
+                
+                const pc = createPeerConnection(activeCallRef.current.targetUserId, activeCallRef.current.conversationId);
+                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                
+                socket.emit("webrtc-offer", {
+                    targetUserId: activeCallRef.current.targetUserId,
+                    conversationId: activeCallRef.current.conversationId,
+                    offer
+                });
+            } catch (err) {
+                console.error("Failed to setup WebRTC as caller", err);
+                cleanupCall();
+            }
+        };
+
+        const handleCallRejected = (payload) => {
+            if (activeCallRef.current && activeCallRef.current.conversationId === payload.conversationId) {
+                if (payload.reason === "User is offline") {
+                    alert("User is offline");
+                }
+                cleanupCall();
+            }
+        };
+
+        const handleCallEnded = (payload) => {
+            if (activeCallRef.current && activeCallRef.current.conversationId === payload.conversationId) {
+                cleanupCall();
+            }
+        };
+
+        const handleWebRTCOffer = async (payload) => {
+            if (callStateRef.current !== "connected" || !peerConnectionRef.current) return;
+            try {
+                await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+                const answer = await peerConnectionRef.current.createAnswer();
+                await peerConnectionRef.current.setLocalDescription(answer);
+                
+                socket.emit("webrtc-answer", {
+                    targetUserId: payload.callerId,
+                    conversationId: payload.conversationId,
+                    answer
+                });
+            } catch (err) {
+                console.error("Failed to handle offer", err);
+            }
+        };
+
+        const handleWebRTCAnswer = async (payload) => {
+            if (callStateRef.current !== "connected" || !peerConnectionRef.current) return;
+            try {
+                await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+            } catch (err) {
+                console.error("Failed to handle answer", err);
+            }
+        };
+
+        const handleIceCandidate = async (payload) => {
+            if (peerConnectionRef.current) {
+                try {
+                    await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                } catch (err) {
+                    console.error("Failed to add ICE candidate", err);
+                }
+            }
+        };
+
         socket.on("receive-message", handleReceiveMessage);
         socket.on("receive-dm", handleReceiveDM);
         socket.on("channel-created", handleChannelCreated);
@@ -499,6 +735,14 @@ function Chat() {
         socket.on("message-deleted", handleMessageDeleted);
         socket.on("message-error", handleMessageError);
         socket.on("message-reaction-updated", handleMessageReactionUpdated);
+        
+        socket.on("incoming-call", handleIncomingCall);
+        socket.on("call-accepted", handleCallAccepted);
+        socket.on("call-rejected", handleCallRejected);
+        socket.on("call-ended", handleCallEnded);
+        socket.on("webrtc-offer", handleWebRTCOffer);
+        socket.on("webrtc-answer", handleWebRTCAnswer);
+        socket.on("ice-candidate", handleIceCandidate);
 
         return () => {
             socket.off("receive-message", handleReceiveMessage);
@@ -514,6 +758,14 @@ function Chat() {
             socket.off("message-deleted", handleMessageDeleted);
             socket.off("message-error", handleMessageError);
             socket.off("message-reaction-updated", handleMessageReactionUpdated);
+            
+            socket.off("incoming-call", handleIncomingCall);
+            socket.off("call-accepted", handleCallAccepted);
+            socket.off("call-rejected", handleCallRejected);
+            socket.off("call-ended", handleCallEnded);
+            socket.off("webrtc-offer", handleWebRTCOffer);
+            socket.off("webrtc-answer", handleWebRTCAnswer);
+            socket.off("ice-candidate", handleIceCandidate);
         };
     }, [selectedChannel, selectedConversation, selectedServer]);
 
@@ -919,7 +1171,18 @@ function Chat() {
                 <ChatArea>
                     {selectedConversation ? (
                         <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span>DM with {dmUser ? dmUser.username : "User"}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <span>DM with {dmUser ? dmUser.username : "User"}</span>
+                                {callState === "idle" && (
+                                    <button
+                                        onClick={() => startCall(dmUser)}
+                                        style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", display: "flex", alignItems: "center", padding: "4px" }}
+                                        title="Start Voice Call"
+                                    >
+                                        <Phone size={18} />
+                                    </button>
+                                )}
+                            </div>
                             {notificationPermission === "default" && (
                                 <button
                                     onClick={requestNotificationPermission}
@@ -1040,6 +1303,83 @@ function Chat() {
                         onStartDM={handleStartDM}
                         selectedMemberId={dmUser?._id}
                     />
+                )}
+
+                {/* Call Overlay UI */}
+                {callState !== "idle" && activeCall && (
+                    <div style={{
+                        position: "absolute",
+                        top: "20px",
+                        right: "20px",
+                        width: "280px",
+                        backgroundColor: "#2b2d31",
+                        border: "1px solid #1e1f22",
+                        borderRadius: "8px",
+                        padding: "16px",
+                        boxShadow: "0 4px 15px rgba(0,0,0,0.5)",
+                        zIndex: 1000,
+                        color: "#f2f3f5",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center"
+                    }}>
+                        <audio ref={remoteAudioRef} autoPlay style={{ display: "none" }} />
+                        
+                        <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
+                            {callState === "incoming" ? `Incoming Call` : activeCall.targetUsername || activeCall.callerUsername || "User"}
+                        </div>
+                        
+                        <div style={{ fontSize: "14px", color: "#b9bbbe", marginBottom: "16px" }}>
+                            {callState === "calling" && "Calling..."}
+                            {callState === "incoming" && `from ${activeCall.callerUsername}`}
+                            {callState === "connected" && "Connected"}
+                        </div>
+                        
+                        <div style={{ display: "flex", gap: "12px", width: "100%", justifyContent: "center" }}>
+                            {callState === "incoming" && (
+                                <>
+                                    <button 
+                                        onClick={rejectCall}
+                                        style={{ backgroundColor: "#da373c", color: "white", border: "none", padding: "8px 16px", borderRadius: "4px", cursor: "pointer", flex: 1, display: "flex", justifyContent: "center" }}
+                                    >
+                                        Decline
+                                    </button>
+                                    <button 
+                                        onClick={acceptCall}
+                                        style={{ backgroundColor: "#23a559", color: "white", border: "none", padding: "8px 16px", borderRadius: "4px", cursor: "pointer", flex: 1, display: "flex", justifyContent: "center" }}
+                                    >
+                                        Accept
+                                    </button>
+                                </>
+                            )}
+                            {callState === "calling" && (
+                                <button 
+                                    onClick={endCall}
+                                    style={{ backgroundColor: "#da373c", color: "white", border: "none", padding: "8px 16px", borderRadius: "4px", cursor: "pointer", flex: 1, display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}
+                                >
+                                    <PhoneOff size={16} /> Cancel
+                                </button>
+                            )}
+                            {callState === "connected" && (
+                                <>
+                                    <button 
+                                        onClick={toggleMute}
+                                        style={{ backgroundColor: isMuted ? "#da373c" : "#4e5058", color: "white", border: "none", padding: "8px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "40px", height: "40px" }}
+                                        title={isMuted ? "Unmute" : "Mute"}
+                                    >
+                                        {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+                                    </button>
+                                    <button 
+                                        onClick={endCall}
+                                        style={{ backgroundColor: "#da373c", color: "white", border: "none", padding: "8px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: "40px", height: "40px" }}
+                                        title="End Call"
+                                    >
+                                        <PhoneOff size={20} />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 )}
             </MainLayout>
 

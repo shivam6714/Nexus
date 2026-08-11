@@ -453,6 +453,126 @@ const registerSocketHandlers = (io) => {
             }
         });
 
+        // --- CALL SIGNALING EVENTS ---
+        
+        socket.on("call-user", async (data) => {
+            try {
+                const { conversationId, targetUserId } = data;
+                
+                const conversation = await Conversation.findById(conversationId);
+                if (!conversation) return;
+                
+                if (!conversation.participants.includes(socket.user._id) || !conversation.participants.includes(targetUserId)) {
+                    return socket.emit("message-error", { success: false, message: "Unauthorized call attempt." });
+                }
+                
+                const targetSockets = onlineUsers.get(targetUserId);
+                if (!targetSockets || targetSockets.size === 0) {
+                    return socket.emit("call-rejected", { reason: "User is offline" });
+                }
+                
+                const callerInfo = {
+                    conversationId,
+                    callerId: socket.user._id.toString(),
+                    callerUsername: socket.user.username,
+                    callerAvatar: socket.user.avatar,
+                    targetUserId
+                };
+                
+                targetSockets.forEach(socketId => {
+                    io.to(socketId).emit("incoming-call", callerInfo);
+                });
+                
+            } catch (error) {
+                console.error("Call User Error:", error);
+            }
+        });
+
+        socket.on("accept-call", async (data) => {
+            try {
+                const { conversationId, callerId } = data;
+                
+                // Authorize (we assume the accepter is the target)
+                const conversation = await Conversation.findById(conversationId);
+                if (!conversation || !conversation.participants.includes(socket.user._id)) return;
+                
+                const callerSockets = onlineUsers.get(callerId);
+                if (callerSockets) {
+                    callerSockets.forEach(socketId => {
+                        io.to(socketId).emit("call-accepted", { 
+                            conversationId,
+                            accepterId: socket.user._id.toString() 
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error("Accept Call Error:", error);
+            }
+        });
+
+        socket.on("reject-call", async (data) => {
+            try {
+                const { conversationId, callerId } = data;
+                
+                const callerSockets = onlineUsers.get(callerId);
+                if (callerSockets) {
+                    callerSockets.forEach(socketId => {
+                        io.to(socketId).emit("call-rejected", { 
+                            conversationId,
+                            reason: "Call declined" 
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error("Reject Call Error:", error);
+            }
+        });
+
+        socket.on("end-call", async (data) => {
+            try {
+                const { conversationId, targetUserId } = data;
+                
+                const targetSockets = onlineUsers.get(targetUserId);
+                if (targetSockets) {
+                    targetSockets.forEach(socketId => {
+                        io.to(socketId).emit("call-ended", { conversationId });
+                    });
+                }
+            } catch (error) {
+                console.error("End Call Error:", error);
+            }
+        });
+
+        socket.on("webrtc-offer", (data) => {
+            const { targetUserId, offer, conversationId } = data;
+            const targetSockets = onlineUsers.get(targetUserId);
+            if (targetSockets) {
+                targetSockets.forEach(socketId => {
+                    io.to(socketId).emit("webrtc-offer", { offer, conversationId, callerId: socket.user._id.toString() });
+                });
+            }
+        });
+
+        socket.on("webrtc-answer", (data) => {
+            const { targetUserId, answer, conversationId } = data;
+            const targetSockets = onlineUsers.get(targetUserId);
+            if (targetSockets) {
+                targetSockets.forEach(socketId => {
+                    io.to(socketId).emit("webrtc-answer", { answer, conversationId, responderId: socket.user._id.toString() });
+                });
+            }
+        });
+
+        socket.on("ice-candidate", (data) => {
+            const { targetUserId, candidate, conversationId } = data;
+            const targetSockets = onlineUsers.get(targetUserId);
+            if (targetSockets) {
+                targetSockets.forEach(socketId => {
+                    io.to(socketId).emit("ice-candidate", { candidate, conversationId, senderId: socket.user._id.toString() });
+                });
+            }
+        });
+
         socket.on("disconnect", () => {
             const userSockets = onlineUsers.get(userId);
             if (userSockets) {
