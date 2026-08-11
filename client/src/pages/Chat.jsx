@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { ArrowDown } from "lucide-react";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
 import api from "../services/api";
@@ -51,9 +52,15 @@ function Chat() {
     const [conversations, setConversations] = useState([]);
     const [dmUser, setDmUser] = useState(null);
     const [serverInfo, setServerInfo] = useState(null);
+    const [highlightedMessageId, setHighlightedMessageId] = useState(null);
 
     const [typingUsers, setTypingUsers] = useState([]);
     const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
+    const [notificationPermission, setNotificationPermission] = useState(
+        "Notification" in window ? Notification.permission : "denied"
+    );
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+    const messagesContainerRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const isTypingRef = useRef(false);
     const activeRoomRef = useRef({ conversationId: null, channelId: null });
@@ -208,6 +215,10 @@ function Chat() {
     }, [selectedServer, selectedConversation, channelId, navigate]);
 
     useEffect(() => {
+        setShowScrollToBottom(false);
+    }, [selectedChannel, selectedConversation]);
+
+    useEffect(() => {
         if (!selectedServer) return;
 
         const fetchMembers = async () => {
@@ -323,6 +334,38 @@ function Chat() {
 
         const handleReceiveDM = (message) => {
             const isActiveConversation = selectedConversation && message.conversation === selectedConversation._id;
+            const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+            const isSender = message.sender._id === currentUser._id || message.sender === currentUser._id;
+
+            // Notification Logic
+            if (!isActiveConversation && !isSender && document.visibilityState !== "visible") {
+                if ("Notification" in window && Notification.permission === "granted") {
+                    let notificationBody = "";
+                    
+                    if (message.content && message.attachment) {
+                        notificationBody = `${message.sender.username}: ${message.content}`;
+                    } else if (message.attachment) {
+                        notificationBody = `${message.sender.username} sent an image`;
+                    } else {
+                        notificationBody = `${message.sender.username}: ${message.content}`;
+                    }
+                    
+                    if (notificationBody.length > 100) {
+                        notificationBody = notificationBody.substring(0, 97) + "...";
+                    }
+                    
+                    const notification = new Notification("Nexus", {
+                        body: notificationBody,
+                        tag: `dm-${message._id}`
+                    });
+                    
+                    notification.onclick = () => {
+                        window.focus();
+                        navigate(`/chat/dm/${message.conversation}`);
+                        notification.close();
+                    };
+                }
+            }
 
             if (isActiveConversation) {
                 setMessages((prev) => [...prev, message]);
@@ -333,11 +376,9 @@ function Chat() {
 
             // Update conversations list
             setConversations((prev) => {
-                const convIndex = prev.findIndex(c => c.conversationId === message.conversation);
+                    const convIndex = prev.findIndex(c => c.conversationId === message.conversation);
                 if (convIndex > -1) {
                     const conv = prev[convIndex];
-                    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-                    const isSender = message.sender._id === currentUser._id || message.sender === currentUser._id;
                     
                     let newUnreadCount = conv.unreadCount || 0;
                     if (!isActiveConversation && !isSender) {
@@ -571,6 +612,44 @@ function Chat() {
         } else {
             socket.emit("add-reaction", { messageId, emoji });
         }
+    };
+
+    const handleJumpToMessage = (messageId) => {
+        const element = document.getElementById(`message-${messageId}`);
+        if (!element) return;
+
+        element.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+
+        setHighlightedMessageId(messageId);
+
+        setTimeout(() => {
+            setHighlightedMessageId(null);
+        }, 1500);
+    };
+
+    const requestNotificationPermission = async () => {
+        if (!("Notification" in window)) return;
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+    };
+
+    const handleScroll = (e) => {
+        const container = e.target;
+        const threshold = 50;
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+        setShowScrollToBottom(!isNearBottom);
+    };
+
+    const handleScrollToBottom = () => {
+        if (!messagesContainerRef.current) return;
+        messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: "smooth"
+        });
+        setShowScrollToBottom(false);
     };
 
     const handleSend = async () => {
@@ -839,12 +918,44 @@ function Chat() {
 
                 <ChatArea>
                     {selectedConversation ? (
-                        <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px" }}>
-                            DM with {dmUser ? dmUser.username : "User"}
+                        <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>DM with {dmUser ? dmUser.username : "User"}</span>
+                            {notificationPermission === "default" && (
+                                <button
+                                    onClick={requestNotificationPermission}
+                                    style={{
+                                        fontSize: "12px",
+                                        padding: "4px 8px",
+                                        backgroundColor: "#5865F2",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "4px",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Enable Notifications
+                                </button>
+                            )}
                         </div>
                     ) : !selectedServer ? (
-                        <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px", color: "#f2f3f5" }}>
-                            Direct Messages
+                        <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px", color: "#f2f3f5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>Direct Messages</span>
+                            {notificationPermission === "default" && (
+                                <button
+                                    onClick={requestNotificationPermission}
+                                    style={{
+                                        fontSize: "12px",
+                                        padding: "4px 8px",
+                                        backgroundColor: "#5865F2",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "4px",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Enable Notifications
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <TopBar 
@@ -854,14 +965,48 @@ function Chat() {
                         />
                     )}
 
-                    <MessageList 
-                        messages={messages} 
-                        currentUserId={JSON.parse(localStorage.getItem("user") || "{}")._id}
-                        onEdit={handleEditMessage}
-                        onDelete={handleDeleteMessage}
-                        onReply={setReplyingTo}
-                        onReact={handleReact}
-                    />
+                    <div style={{ position: "relative", flex: 1, display: "flex", overflow: "hidden" }}>
+                        <MessageList 
+                            messages={messages} 
+                            currentUserId={JSON.parse(localStorage.getItem("user") || "{}")._id}
+                            onEdit={handleEditMessage}
+                            onDelete={handleDeleteMessage}
+                            onReply={setReplyingTo}
+                            onReact={handleReact}
+                            highlightedMessageId={highlightedMessageId}
+                            onJumpToMessage={handleJumpToMessage}
+                            scrollRef={messagesContainerRef}
+                            onScroll={handleScroll}
+                        />
+                        {showScrollToBottom && (
+                            <button
+                                onClick={handleScrollToBottom}
+                                style={{
+                                    position: "absolute",
+                                    bottom: "16px",
+                                    right: "24px",
+                                    zIndex: 10,
+                                    width: "40px",
+                                    height: "40px",
+                                    borderRadius: "50%",
+                                    backgroundColor: "#2b2d31",
+                                    border: "1px solid #1e1f22",
+                                    color: "#ffffff",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: "pointer",
+                                    boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+                                    transition: "background-color 0.2s"
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#3f4147"}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#2b2d31"}
+                                title="Scroll to bottom"
+                            >
+                                <ArrowDown size={20} />
+                            </button>
+                        )}
+                    </div>
 
                     {typingUsers.length > 0 && (
                         <div style={{ padding: "0 16px", color: "#b9bbbe", fontSize: "14px", fontStyle: "italic", marginBottom: "8px" }}>
@@ -873,33 +1018,6 @@ function Chat() {
 
                     {(selectedChannel || selectedConversation) && (
                         <div style={{ position: "relative" }}>
-                            {replyingTo && (
-                                <div style={{
-                                    backgroundColor: "#2f3136",
-                                    padding: "8px 16px",
-                                    borderTopLeftRadius: "8px",
-                                    borderTopRightRadius: "8px",
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    borderBottom: "1px solid #202225",
-                                    color: "#b9bbbe",
-                                    fontSize: "14px"
-                                }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
-                                        <span style={{ fontWeight: "bold", flexShrink: 0 }}>Replying to {replyingTo.sender?.username}</span>
-                                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                            {replyingTo.content}
-                                        </span>
-                                    </div>
-                                    <button 
-                                        onClick={() => setReplyingTo(null)}
-                                        style={{ background: "none", border: "none", color: "#dcddde", cursor: "pointer", fontSize: "18px", padding: "0 4px", lineHeight: "1" }}
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-                            )}
                             <MessageInput
                                 message={message}
                                 setMessage={handleTypingChange}
@@ -908,6 +1026,8 @@ function Chat() {
                                 placeholder={selectedConversation ? `Message @${dmUser ? dmUser.username : "User"}` : undefined}
                                 onAttachmentChange={setAttachment}
                                 attachment={attachment}
+                                replyingTo={replyingTo}
+                                onCancelReply={() => setReplyingTo(null)}
                             />
                         </div>
                     )}

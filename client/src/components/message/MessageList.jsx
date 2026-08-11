@@ -1,8 +1,8 @@
 import MessageBubble from "./MessageBubble";
 
-function MessageList({ messages, currentUserId, onEdit, onDelete, onReply, onReact }) {
+function MessageList({ messages, currentUserId, onEdit, onDelete, onReply, onReact, highlightedMessageId, onJumpToMessage, scrollRef, onScroll }) {
     return (
-        <div className="message-list">
+        <div className="message-list" ref={scrollRef} onScroll={onScroll}>
             {messages.map((message) => (
                 <MessageBubble
                     key={message._id}
@@ -12,6 +12,8 @@ function MessageList({ messages, currentUserId, onEdit, onDelete, onReply, onRea
                     onDelete={onDelete}
                     onReply={onReply}
                     onReact={onReact}
+                    highlightedMessageId={highlightedMessageId}
+                    onJumpToMessage={onJumpToMessage}
                 />
             ))}
         </div>

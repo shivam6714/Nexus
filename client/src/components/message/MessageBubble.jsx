@@ -1,6 +1,38 @@
 import { useState, useEffect } from "react";
 
-function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onReact }) {
+const formatMessageTime = (createdAt) => {
+    if (!createdAt) return null;
+    const date = new Date(createdAt);
+    if (isNaN(date.getTime())) return null;
+
+    const now = new Date();
+    const isToday = 
+        date.getDate() === now.getDate() &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = 
+        date.getDate() === yesterday.getDate() &&
+        date.getMonth() === yesterday.getMonth() &&
+        date.getFullYear() === yesterday.getFullYear();
+
+    const timeString = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    if (isToday) {
+        return `Today at ${timeString}`;
+    } else if (isYesterday) {
+        return `Yesterday at ${timeString}`;
+    } else {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year} at ${timeString}`;
+    }
+};
+
+function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onReact, highlightedMessageId, onJumpToMessage }) {
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(message.content || "");
     const [showReactions, setShowReactions] = useState(false);
@@ -49,9 +81,50 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
     };
 
     return (
-        <div className="message-bubble" style={{ position: "relative" }}>
+        <div
+            id={`message-${message._id}`}
+            className="message-bubble"
+            style={{
+                position: "relative",
+                backgroundColor: highlightedMessageId === message._id ? "rgba(42, 59, 237, 0.4)" : "#24262a",
+                transition: "background-color 0.2s ease",
+                borderRadius: "10px",
+                padding: "12px 14px",
+                marginBottom: "10px",
+                width: "100%",
+                boxSizing: "border-box",
+                wordBreak: "break-word"
+            }}
+            onMouseOver={(e) => {
+                if (highlightedMessageId !== message._id) {
+                    e.currentTarget.style.backgroundColor = "#2a2c30";
+                }
+            }}
+            onMouseOut={(e) => {
+                if (highlightedMessageId !== message._id) {
+                    e.currentTarget.style.backgroundColor = "#24262a";
+                }
+            }}
+        >
             {message.replyTo && message.replyTo.sender && (
-                <div style={{ display: "flex", alignItems: "center", color: "#b9bbbe", fontSize: "12px", marginBottom: "4px", gap: "6px" }}>
+                <div
+                    onClick={() => onJumpToMessage && onJumpToMessage(message.replyTo._id)}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        color: "#b9bbbe",
+                        fontSize: "12px",
+                        marginBottom: "4px",
+                        gap: "6px",
+                        cursor: "pointer",
+                        padding: "2px 4px",
+                        borderRadius: "4px",
+                        marginLeft: "-4px"
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                    title="Jump to original message"
+                >
                     <div style={{ width: "20px", height: "1px", backgroundColor: "#4f545c", borderLeft: "2px solid #4f545c", borderTop: "2px solid #4f545c", borderRadius: "4px 0 0 0", marginTop: "10px" }} />
                     <div
                         style={{
@@ -65,10 +138,19 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                             justifyContent: "center",
                             fontSize: "9px",
                             fontWeight: "bold",
-                            flexShrink: 0
+                            flexShrink: 0,
+                            overflow: "hidden"
                         }}
                     >
-                        {message.replyTo.sender.username?.charAt(0).toUpperCase() || "U"}
+                        {message.replyTo.sender.avatar ? (
+                            <img
+                                src={`http://localhost:5000${message.replyTo.sender.avatar}`}
+                                alt="avatar"
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                        ) : (
+                            message.replyTo.sender.username?.charAt(0).toUpperCase() || "U"
+                        )}
                     </div>
                     <strong>{message.replyTo.sender.username}</strong>
                     <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "300px", cursor: "pointer" }}>
@@ -77,7 +159,42 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                 </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <strong>{message.sender.username}</strong>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div
+                        style={{
+                            width: "40px",
+                            height: "40px",
+                            borderRadius: "50%",
+                            backgroundColor: "#5865f2",
+                            color: "white",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            flexShrink: 0,
+                            overflow: "hidden"
+                        }}
+                    >
+                        {message.sender.avatar ? (
+                            <img
+                                src={`http://localhost:5000${message.sender.avatar}`}
+                                alt="avatar"
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                        ) : (
+                            message.sender.username?.charAt(0).toUpperCase() || "U"
+                        )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                        <strong>{message.sender.username}</strong>
+                        {formatMessageTime(message.createdAt) && (
+                            <span style={{ fontSize: "11.5px", color: "#949ba4", fontWeight: "500" }}>
+                                {formatMessageTime(message.createdAt)}
+                            </span>
+                        )}
+                    </div>
+                </div>
                 <div style={{ display: "flex", gap: "8px", fontSize: "12px", position: "relative" }}>
                     {!isEditing && (
                         <>
@@ -194,11 +311,11 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                             )}
                         </p>
                     )}
-                    
+
                     {message.attachment && !imageError && (
-                        <img 
-                            src={`http://localhost:5000${message.attachment}`} 
-                            alt="Attachment" 
+                        <img
+                            src={`http://localhost:5000${message.attachment}`}
+                            alt="Attachment"
                             style={{
                                 maxWidth: "400px",
                                 maxHeight: "400px",
@@ -214,22 +331,22 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                             onError={() => setImageError(true)}
                         />
                     )}
-                    
+
                     {message.attachment && imageError && (
                         <div style={{ fontSize: "12px", color: "#f23f42", marginTop: message.content ? "8px" : "0" }}>
                             Image failed to load
                         </div>
                     )}
-                    
+
                     {message.reactions && message.reactions.length > 0 && (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "8px" }}>
                             {message.reactions.map((reaction, index) => {
-                                const hasReacted = currentUserId && reaction.users.some(u => 
-                                    u === currentUserId || 
+                                const hasReacted = currentUserId && reaction.users.some(u =>
+                                    u === currentUserId ||
                                     (u._id && u._id === currentUserId) ||
                                     (u.toString() === currentUserId.toString())
                                 );
-                                
+
                                 return (
                                     <button
                                         key={index}

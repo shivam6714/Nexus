@@ -2,6 +2,8 @@ const { createMessageService } = require("../services/messageService");
 const onlineUsers = require("./onlineUsers");
 const Message = require("../models/Message");
 const Conversation = require("../models/Conversation");
+const fs = require("fs");
+const path = require("path");
 
 const registerSocketHandlers = (io) => {
     io.on("connection", (socket) => {
@@ -250,6 +252,27 @@ const registerSocketHandlers = (io) => {
 
                 const channelId = message.channel;
                 const conversationId = message.conversation;
+
+                if (message.attachment) {
+                    try {
+                        const filename = path.basename(message.attachment);
+                        const baseUploadsDir = path.join(__dirname, "..", "uploads", "messages");
+                        const absolutePath = path.join(baseUploadsDir, filename);
+
+                        if (absolutePath.startsWith(baseUploadsDir)) {
+                            if (fs.existsSync(absolutePath)) {
+                                await fs.promises.unlink(absolutePath);
+                                console.log("[DELETE SOCKET] Deleted physical attachment:", absolutePath);
+                            } else {
+                                console.warn("[DELETE SOCKET] Attachment file not found on disk:", absolutePath);
+                            }
+                        } else {
+                            console.warn("[DELETE SOCKET] Security Warning: Attachment path traversal attempt:", message.attachment);
+                        }
+                    } catch (fileError) {
+                        console.error("[DELETE SOCKET] Error deleting physical attachment:", fileError);
+                    }
+                }
 
                 await message.deleteOne();
 

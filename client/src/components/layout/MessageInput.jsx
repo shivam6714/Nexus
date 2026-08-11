@@ -9,7 +9,9 @@ function MessageInput({
     channel,
     placeholder,
     onAttachmentChange,
-    attachment
+    attachment,
+    replyingTo,
+    onCancelReply
 }) {
     const [selectedImage, setSelectedImage] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -109,6 +111,60 @@ function MessageInput({
 
     return (
         <div className="message-input-container" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 16px 16px' }}>
+            {replyingTo && (
+                <div style={{
+                    backgroundColor: "#2b2d31",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    color: "#b9bbbe",
+                    fontSize: "14px",
+                    borderLeft: "4px solid #4f545c"
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
+                        <div
+                            style={{
+                                width: "16px",
+                                height: "16px",
+                                borderRadius: "50%",
+                                backgroundColor: "#5865f2",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "9px",
+                                fontWeight: "bold",
+                                flexShrink: 0,
+                                overflow: "hidden"
+                            }}
+                        >
+                            {replyingTo.sender.avatar ? (
+                                <img 
+                                    src={`http://localhost:5000${replyingTo.sender.avatar}`} 
+                                    alt="avatar" 
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                            ) : (
+                                replyingTo.sender.username?.charAt(0).toUpperCase() || "U"
+                            )}
+                        </div>
+                        <span style={{ fontWeight: "bold", flexShrink: 0 }}>Replying to {replyingTo.sender?.username}</span>
+                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: 0.8 }}>
+                            {replyingTo.content || (replyingTo.attachment ? "📷 Image" : "")}
+                        </span>
+                    </div>
+                    <button 
+                        onClick={onCancelReply}
+                        type="button"
+                        style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px" }}
+                        title="Cancel reply"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
             {imagePreview && (
                 <div className="image-preview-wrapper" style={{ position: 'relative', width: 'fit-content', background: '#2B2D31', padding: '8px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ position: 'relative' }}>
