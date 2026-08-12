@@ -10,16 +10,20 @@ const {
 } = require("../socket/serverEvents");
 
 const createServer = async (req, res) => {
+    console.log("[createServer] Request received from user:", req.user?._id);
+    console.log("[createServer] Request body:", req.body);
     try {
         const { name, description } = req.body;
 
         if (!name) {
+            console.log("[createServer] Validation failed: Name is required");
             return res.status(400).json({
                 success: false,
                 message: "Name is required",
             });
         }
 
+        console.log("[createServer] Creating Server document...");
         // Create the server
         const server = await Server.create({
             name,
@@ -28,7 +32,9 @@ const createServer = async (req, res) => {
             members: [req.user._id],
             inviteCode: generateInviteCode(),
         });
+        console.log("[createServer] Server document created:", server._id);
 
+        console.log("[createServer] Creating default #general channel...");
         // Create the default #general channel
         const generalChannel = await Channel.create({
             name: "general",
@@ -36,24 +42,27 @@ const createServer = async (req, res) => {
             server: server._id,
             createdBy: req.user._id,
         });
+        console.log("[createServer] Channel created:", generalChannel._id);
 
+        console.log("[createServer] Adding channel to server...");
         // Add the channel to the server
         server.channels.push(generalChannel._id);
 
         await server.save();
+        console.log("[createServer] Server saved successfully");
 
         res.status(201).json({
             success: true,
             message: "Server created successfully",
             server,
         });
-
+        console.log("[createServer] Response sent successfully");
     } catch (error) {
-        console.error(error);
+        console.error("[createServer] Exception caught:", error);
 
         res.status(500).json({
             success: false,
-            message: "Internal server error",
+            message: "Internal server error: " + error.message,
         });
     }
 };

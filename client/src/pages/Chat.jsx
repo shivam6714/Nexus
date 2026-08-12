@@ -1788,15 +1788,27 @@ function Chat() {
     };
 
     const handleCreateServer = async (serverData) => {
+        console.log("[handleCreateServer] Started with data:", serverData);
         try {
+            console.log("[handleCreateServer] Calling createServer API...");
             const data = await createServer(serverData);
+            console.log("[handleCreateServer] API response received:", data);
 
             setServers((prev) => [...prev, data.server]);
             setSelectedServer(data.server);
             setActiveModal(null);
+            console.log("[handleCreateServer] State updated successfully.");
         } catch (error) {
-            console.error(error);
-            alert("Failed to create server");
+            console.error("[handleCreateServer] Error:", error);
+            if (error.response) {
+                console.error("[handleCreateServer] Response Error Data:", error.response.data);
+                console.error("[handleCreateServer] Response Status:", error.response.status);
+            } else if (error.request) {
+                console.error("[handleCreateServer] No response received from server. Request:", error.request);
+            } else {
+                console.error("[handleCreateServer] Error Message:", error.message);
+            }
+            alert("Failed to create server: " + (error.response?.data?.message || error.message));
         }
     };
 
