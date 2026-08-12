@@ -754,6 +754,17 @@ const registerSocketHandlers = (io) => {
             socket.to(`voice-${channelId}`).emit("voice-mute-toggled", { channelId, userId: senderId, muted });
         });
 
+        socket.on("voice-video-toggled", (data) => {
+            const { channelId, videoOn } = data;
+            const senderId = socket.user._id.toString();
+
+            if (userVoiceChannel.get(senderId) !== channelId) {
+                return;
+            }
+
+            socket.to(`voice-${channelId}`).emit("voice-video-toggled", { channelId, userId: senderId, videoOn });
+        });
+
         socket.on("disconnect", () => {
             const userSockets = onlineUsers.get(userId);
             if (userSockets) {

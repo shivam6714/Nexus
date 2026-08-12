@@ -29,7 +29,45 @@ import { sendDM, getDMMessages } from "../services/dmService";
 import MessageList from "../components/message/MessageList";
 import { joinServer } from "../services/joinServerService";
 import { getServerMembers } from "../services/memberService";
+import VoiceRoomView from "../components/voice/VoiceRoomView";
 import "../styles/layout.css";
+
+const playVoiceSound = (type) => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        const now = ctx.currentTime;
+        
+        if (type === 'join') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(0.35, now + 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (type === 'leave') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(440, now + 0.1);
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(0.35, now + 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        }
+    } catch (e) {
+        console.warn("Audio playback failed", e);
+    }
+};
 
 function Chat() {
     const location = useLocation();
@@ -75,6 +113,10 @@ function Chat() {
     const pendingVoiceIceCandidatesRef = useRef(new Map());
     const voiceLocalStreamRef = useRef(null);
     const [isVoiceMuted, setIsVoiceMuted] = useState(false);
+    const [isVoiceVideoOn, setIsVoiceVideoOn] = useState(false);
+    const [isVoiceViewOpen, setIsVoiceViewOpen] = useState(false);
+    const voiceLocalVideoTrackRef = useRef(null);
+    const voiceVideoSendersRef = useRef(new Map());
     const [voiceStreamsUpdate, setVoiceStreamsUpdate] = useState(0);
     const [voiceConnectionState, setVoiceConnectionState] = useState("idle"); // idle, connecting, connected, disconnected
 
@@ -130,6 +172,11 @@ function Chat() {
             });
         }
         
+        if (voiceLocalVideoTrackRef.current) {
+            voiceLocalVideoTrackRef.current.stop();
+            voiceLocalVideoTrackRef.current = null;
+        }
+
         if (voiceLocalStreamRef.current) {
             voiceLocalStreamRef.current.getTracks().forEach(track => track.stop());
             voiceLocalStreamRef.current = null;
@@ -139,10 +186,13 @@ function Chat() {
         voicePeerConnectionsRef.current.clear();
         voiceRemoteStreamsRef.current.clear();
         pendingVoiceIceCandidatesRef.current.clear();
+        voiceVideoSendersRef.current.clear();
         
         setActiveVoiceChannel(null);
         setVoiceParticipants([]);
         setIsVoiceMuted(false);
+        setIsVoiceVideoOn(false);
+        setIsVoiceViewOpen(false);
         setVoiceConnectionState("idle");
     };
 
@@ -163,6 +213,76 @@ function Chat() {
         }
     };
 
+    const toggleVoiceVideo = async () => {
+        if (!activeVoiceChannel) return;
+
+        try {
+            if (!voiceLocalVideoTrackRef.current) {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 30 }
+                    }
+                });
+                
+                const videoTrack = stream.getVideoTracks()[0];
+                voiceLocalVideoTrackRef.current = videoTrack;
+                
+                if (voiceLocalStreamRef.current) {
+                    voiceLocalStreamRef.current.addTrack(videoTrack);
+                }
+
+                voicePeerConnectionsRef.current.forEach(async (pc, remoteUserId) => {
+                    if (voiceLocalStreamRef.current) {
+                        const sender = pc.addTrack(videoTrack, voiceLocalStreamRef.current);
+                        voiceVideoSendersRef.current.set(remoteUserId, sender);
+
+                        try {
+                            const offer = await pc.createOffer();
+                            await pc.setLocalDescription(offer);
+                            socket.emit("voice-webrtc-offer", {
+                                channelId: activeVoiceChannel._id,
+                                targetUserId: remoteUserId,
+                                offer
+                            });
+                        } catch (err) {
+                            console.error("Renegotiation failed for", remoteUserId, err);
+                        }
+                    }
+                });
+
+                setIsVoiceVideoOn(true);
+                setVoiceStreamsUpdate(prev => prev + 1);
+                
+                if (socket.connected) {
+                    socket.emit("voice-video-toggled", {
+                        channelId: activeVoiceChannel._id,
+                        videoOn: true
+                    });
+                }
+            } else {
+                const videoTrack = voiceLocalVideoTrackRef.current;
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsVoiceVideoOn(videoTrack.enabled);
+                
+                if (socket.connected) {
+                    socket.emit("voice-video-toggled", {
+                        channelId: activeVoiceChannel._id,
+                        videoOn: videoTrack.enabled
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("Failed to access camera", err);
+            let message = "Failed to access camera: " + err.message;
+            if (err.name === "NotAllowedError") message = "Camera permission was denied.";
+            if (err.name === "NotFoundError") message = "No camera found.";
+            if (err.name === "NotReadableError") message = "Camera is in use by another application.";
+            alert("Camera Error: " + message);
+        }
+    };
+
     const createVoicePeerConnection = (remoteUserId, channelId) => {
         const pc = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -173,7 +293,10 @@ function Chat() {
 
         if (voiceLocalStreamRef.current) {
             voiceLocalStreamRef.current.getTracks().forEach(track => {
-                pc.addTrack(track, voiceLocalStreamRef.current);
+                const sender = pc.addTrack(track, voiceLocalStreamRef.current);
+                if (track.kind === "video") {
+                    voiceVideoSendersRef.current.set(remoteUserId, sender);
+                }
             });
         }
 
@@ -642,7 +765,8 @@ function Chat() {
                         userId: uid,
                         username: memberObj ? memberObj.username : "Unknown User",
                         avatar: memberObj ? memberObj.avatar : "",
-                        isMuted: false
+                        isMuted: false,
+                        isVideoOn: false
                     };
                 });
 
@@ -653,7 +777,8 @@ function Chat() {
                         userId: currentUserId,
                         username: currentUsername + " (You)",
                         avatar: currentAvatar,
-                        isMuted: isVoiceMuted
+                        isMuted: isVoiceMuted,
+                        isVideoOn: isVoiceVideoOn
                     });
                 }
                 
@@ -683,9 +808,15 @@ function Chat() {
         const handleVoiceUserJoined = (data) => {
             const { channelId, userId, username, avatar } = data;
             if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
+                const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+                
+                if (userId !== currentUserId) {
+                    playVoiceSound('join');
+                }
+
                 setVoiceParticipants(prev => {
                     if (prev.some(p => p.userId === userId)) return prev;
-                    return [...prev, { userId, username, avatar, isMuted: false }];
+                    return [...prev, { userId, username, avatar, isMuted: false, isVideoOn: false }];
                 });
             }
         };
@@ -693,6 +824,12 @@ function Chat() {
         const handleVoiceUserLeft = (data) => {
             const { channelId, userId } = data;
             if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
+                const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+                
+                if (userId !== currentUserId) {
+                    playVoiceSound('leave');
+                }
+
                 setVoiceParticipants(prev => prev.filter(p => p.userId !== userId));
                 
                 const pc = voicePeerConnectionsRef.current.get(userId);
@@ -702,6 +839,7 @@ function Chat() {
                 }
                 voiceRemoteStreamsRef.current.delete(userId);
                 pendingVoiceIceCandidatesRef.current.delete(userId);
+                voiceVideoSendersRef.current.delete(userId);
                 setVoiceStreamsUpdate(prev => prev + 1);
             }
         };
@@ -783,6 +921,15 @@ function Chat() {
             }
         };
 
+        const handleVoiceVideoToggled = (data) => {
+            const { channelId, userId, videoOn } = data;
+            if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
+                setVoiceParticipants(prev => prev.map(p => 
+                    p.userId === userId ? { ...p, isVideoOn: videoOn } : p
+                ));
+            }
+        };
+
         const handleVoiceError = (data) => {
             alert("Voice Error: " + data.message);
             leaveVoiceChannel();
@@ -802,6 +949,7 @@ function Chat() {
         socket.on("voice-webrtc-answer", handleVoiceAnswer);
         socket.on("voice-ice-candidate", handleVoiceIceCandidate);
         socket.on("voice-mute-toggled", handleVoiceMuteToggled);
+        socket.on("voice-video-toggled", handleVoiceVideoToggled);
         socket.on("disconnect", handleDisconnect);
 
         return () => {
@@ -813,6 +961,7 @@ function Chat() {
             socket.off("voice-webrtc-answer", handleVoiceAnswer);
             socket.off("voice-ice-candidate", handleVoiceIceCandidate);
             socket.off("voice-mute-toggled", handleVoiceMuteToggled);
+            socket.off("voice-video-toggled", handleVoiceVideoToggled);
             socket.off("disconnect", handleDisconnect);
         };
     }, [activeVoiceChannel, members, isVoiceMuted]);
@@ -1349,6 +1498,7 @@ function Chat() {
         setSelectedConversation(null);
         setDmUser(null);
         setSelectedChannel(channel);
+        setIsVoiceViewOpen(false); // Close voice view when switching text channels
         if (selectedServer) {
             navigate(`/chat/server/${selectedServer._id}/channel/${channel._id}`);
         }
@@ -1356,7 +1506,8 @@ function Chat() {
 
     const handleSelectVoiceChannel = async (channel) => {
         if (activeVoiceChannel && activeVoiceChannel._id === channel._id) {
-            return; // Already in this voice channel
+            setIsVoiceViewOpen(prev => !prev);
+            return; // Already in this voice channel, just toggle view
         }
         
         // If we were in another voice channel, leave it first
@@ -1395,6 +1546,7 @@ function Chat() {
         setActiveVoiceChannel(channel);
         setVoiceParticipants([]);
         setVoiceConnectionState("connecting");
+        setIsVoiceViewOpen(true);
         
         if (socket.connected) {
             socket.emit("join-voice-channel", {
@@ -1402,6 +1554,9 @@ function Chat() {
             });
             if (isVoiceMuted) {
                 socket.emit("voice-mute-toggled", { channelId: channel._id, muted: true });
+            }
+            if (isVoiceVideoOn) {
+                socket.emit("voice-video-toggled", { channelId: channel._id, videoOn: true });
             }
         }
     };
@@ -1591,6 +1746,8 @@ function Chat() {
                         onLeaveVoiceChannel={leaveVoiceChannel}
                         isVoiceMuted={isVoiceMuted}
                         onToggleVoiceMute={toggleVoiceMute}
+                        isVoiceVideoOn={isVoiceVideoOn}
+                        onToggleVoiceVideo={toggleVoiceVideo}
                         voiceRemoteStreamsRef={voiceRemoteStreamsRef}
                         voiceLocalStreamRef={voiceLocalStreamRef}
                         voiceStreamsUpdate={voiceStreamsUpdate}
@@ -1599,10 +1756,24 @@ function Chat() {
                 )}
 
                 <ChatArea>
-                    {selectedConversation ? (
-                        <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                <span>DM with {dmUser ? dmUser.username : "User"}</span>
+                    {isVoiceViewOpen && activeVoiceChannel ? (
+                        <VoiceRoomView 
+                            activeVoiceChannel={activeVoiceChannel}
+                            voiceParticipants={voiceParticipants}
+                            voiceRemoteStreamsRef={voiceRemoteStreamsRef}
+                            voiceLocalStreamRef={voiceLocalStreamRef}
+                            isVoiceVideoOn={isVoiceVideoOn}
+                            isVoiceMuted={isVoiceMuted}
+                            toggleVoiceVideo={toggleVoiceVideo}
+                            toggleVoiceMute={toggleVoiceMute}
+                            leaveVoiceChannel={leaveVoiceChannel}
+                        />
+                    ) : (
+                        <>
+                            {selectedConversation ? (
+                                <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", fontWeight: "bold", fontSize: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <span>DM with {dmUser ? dmUser.username : "User"}</span>
                                 {callState === "idle" && (
                                     <>
                                         <button
@@ -1733,6 +1904,8 @@ function Chat() {
                             />
                         </div>
                     )}
+                    </>
+                )}
                 </ChatArea>
 
                 {!selectedConversation && (

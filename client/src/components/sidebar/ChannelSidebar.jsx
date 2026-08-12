@@ -1,4 +1,4 @@
-import { Hash, Volume2, PhoneOff, Mic, MicOff } from "lucide-react";
+import { Hash, Volume2, PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import VoiceParticipant from "../voice/VoiceParticipant";
 import "./ChannelSidebar.css";
 
@@ -13,6 +13,8 @@ function ChannelSidebar({
     onLeaveVoiceChannel,
     isVoiceMuted,
     onToggleVoiceMute,
+    isVoiceVideoOn,
+    onToggleVoiceVideo,
     voiceRemoteStreamsRef,
     voiceLocalStreamRef,
     voiceStreamsUpdate,
@@ -131,6 +133,13 @@ function ChannelSidebar({
                         >
                             {isVoiceMuted ? <MicOff size={16} /> : <Mic size={16} />} 
                             {isVoiceMuted ? "Unmute" : "Mute"}
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onToggleVoiceVideo(); }}
+                            style={{ flex: 1, background: "#2b2d31", border: "none", color: isVoiceVideoOn ? "#23a559" : "#b9bbbe", padding: "8px", borderRadius: "4px", fontSize: "13px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                        >
+                            {isVoiceVideoOn ? <Video size={16} /> : <VideoOff size={16} />} 
+                            {isVoiceVideoOn ? "Camera" : "Camera"}
                         </button>
                         <button 
                             onClick={(e) => { e.stopPropagation(); onLeaveVoiceChannel(); }}
