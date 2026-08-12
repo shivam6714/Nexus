@@ -18,7 +18,9 @@ function ChannelSidebar({
     voiceRemoteStreamsRef,
     voiceLocalStreamRef,
     voiceStreamsUpdate,
-    voiceConnectionState
+    voiceConnectionState,
+    isVoiceViewOpen,
+    onToggleVoiceView
 }) {
     const textChannels = channels.filter(c => c.type === "text" || !c.type);
     const voiceChannels = channels.filter(c => c.type === "voice");
@@ -113,14 +115,23 @@ function ChannelSidebar({
                     </div>
                 )}
             </div>
-            
             {/* Voice Status Panel */}
             {activeVoiceChannel && (
                 <div style={{ marginTop: "auto", borderTop: "1px solid #1e1f22", padding: "12px", backgroundColor: "#232428", flexShrink: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", fontSize: "13px", fontWeight: "bold" }}>
-                        {voiceConnectionState === "connected" && <span style={{ color: "#23a559" }}>🟢 Voice Connected</span>}
-                        {voiceConnectionState === "connecting" && <span style={{ color: "#f0b232" }}>🟡 Connecting...</span>}
-                        {voiceConnectionState === "disconnected" && <span style={{ color: "#da373c" }}>🔴 Disconnected</span>}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "bold" }}>
+                            {voiceConnectionState === "connected" && <span style={{ color: "#23a559" }}>🟢 Voice Connected</span>}
+                            {voiceConnectionState === "connecting" && <span style={{ color: "#f0b232" }}>🟡 Connecting...</span>}
+                            {voiceConnectionState === "disconnected" && <span style={{ color: "#da373c" }}>🔴 Disconnected</span>}
+                        </div>
+                        {!isVoiceViewOpen && (
+                            <button 
+                                onClick={onToggleVoiceView}
+                                style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "none", color: "#f2f3f5", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "bold" }}
+                            >
+                                Show
+                            </button>
+                        )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#23a559", fontSize: "13px", marginBottom: "12px", fontWeight: "500" }}>
                         <Volume2 size={16} /> <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{activeVoiceChannel.name}</span>

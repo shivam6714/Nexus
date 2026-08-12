@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowDown, Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { ArrowDown, Phone, PhoneOff, Mic, MicOff, Video, VideoOff, X } from "lucide-react";
 import Modal from "../components/common/Modal";
 import CreateServerForm from "../components/forms/CreateServerForm";
 import api from "../services/api";
@@ -119,6 +119,14 @@ function Chat() {
     const voiceVideoSendersRef = useRef(new Map());
     const [voiceStreamsUpdate, setVoiceStreamsUpdate] = useState(0);
     const [voiceConnectionState, setVoiceConnectionState] = useState("idle"); // idle, connecting, connected, disconnected
+    
+    // Server Voice Screen Share
+    const [isVoiceScreenSharing, setIsVoiceScreenSharing] = useState(false);
+    const voiceScreenTrackRef = useRef(null);
+    const voiceLocalScreenStreamRef = useRef(null);
+    const voiceScreenSendersRef = useRef(new Map());
+    const voiceRemoteScreenStreamsRef = useRef(new Map());
+    const [screenShareWarning, setScreenShareWarning] = useState(false);
 
     // Call state
     const [callState, _setCallState] = useState("idle"); // idle, calling, incoming, connected
@@ -177,6 +185,13 @@ function Chat() {
             voiceLocalVideoTrackRef.current = null;
         }
 
+        if (voiceScreenTrackRef.current) {
+            voiceScreenTrackRef.current.stop();
+            voiceScreenTrackRef.current = null;
+        }
+        voiceLocalScreenStreamRef.current = null;
+        voiceScreenSendersRef.current.clear();
+
         if (voiceLocalStreamRef.current) {
             voiceLocalStreamRef.current.getTracks().forEach(track => track.stop());
             voiceLocalStreamRef.current = null;
@@ -192,6 +207,7 @@ function Chat() {
         setVoiceParticipants([]);
         setIsVoiceMuted(false);
         setIsVoiceVideoOn(false);
+        setIsVoiceScreenSharing(false);
         setIsVoiceViewOpen(false);
         setVoiceConnectionState("idle");
     };
@@ -201,12 +217,18 @@ function Chat() {
             const audioTrack = voiceLocalStreamRef.current.getAudioTracks()[0];
             if (audioTrack) {
                 audioTrack.enabled = !audioTrack.enabled;
-                setIsVoiceMuted(!audioTrack.enabled);
+                const newMuted = !audioTrack.enabled;
+                setIsVoiceMuted(newMuted);
+                
+                const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+                setVoiceParticipants(prev => prev.map(p => 
+                    p.userId === currentUserId ? { ...p, isMuted: newMuted } : p
+                ));
                 
                 if (activeVoiceChannel && socket.connected) {
                     socket.emit("voice-mute-toggled", {
                         channelId: activeVoiceChannel._id,
-                        muted: !audioTrack.enabled
+                        muted: newMuted
                     });
                 }
             }
@@ -255,6 +277,11 @@ function Chat() {
                 setIsVoiceVideoOn(true);
                 setVoiceStreamsUpdate(prev => prev + 1);
                 
+                const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+                setVoiceParticipants(prev => prev.map(p => 
+                    p.userId === currentUserId ? { ...p, isVideoOn: true } : p
+                ));
+                
                 if (socket.connected) {
                     socket.emit("voice-video-toggled", {
                         channelId: activeVoiceChannel._id,
@@ -265,6 +292,11 @@ function Chat() {
                 const videoTrack = voiceLocalVideoTrackRef.current;
                 videoTrack.enabled = !videoTrack.enabled;
                 setIsVoiceVideoOn(videoTrack.enabled);
+                
+                const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+                setVoiceParticipants(prev => prev.map(p => 
+                    p.userId === currentUserId ? { ...p, isVideoOn: videoTrack.enabled } : p
+                ));
                 
                 if (socket.connected) {
                     socket.emit("voice-video-toggled", {
@@ -280,6 +312,125 @@ function Chat() {
             if (err.name === "NotFoundError") message = "No camera found.";
             if (err.name === "NotReadableError") message = "Camera is in use by another application.";
             alert("Camera Error: " + message);
+        }
+    };
+
+    const stopVoiceScreenShare = () => {
+        if (voiceScreenTrackRef.current) {
+            voiceScreenTrackRef.current.stop();
+            voiceScreenTrackRef.current = null;
+        }
+        
+        voiceLocalScreenStreamRef.current = null;
+
+        voicePeerConnectionsRef.current.forEach(async (pc, remoteUserId) => {
+            const sender = voiceScreenSendersRef.current.get(remoteUserId);
+            if (sender) {
+                pc.removeTrack(sender);
+                try {
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    socket.emit("voice-webrtc-offer", {
+                        channelId: activeVoiceChannel._id,
+                        targetUserId: remoteUserId,
+                        offer
+                    });
+                } catch (err) {
+                    console.error("Screen share stop renegotiation failed for", remoteUserId, err);
+                }
+            }
+        });
+        
+        voiceScreenSendersRef.current.clear();
+        setIsVoiceScreenSharing(false);
+
+        const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+        setVoiceParticipants(prev => prev.map(p => 
+            p.userId === currentUserId ? { ...p, isScreenSharing: false } : p
+        ));
+
+        if (activeVoiceChannel && socket.connected) {
+            socket.emit("voice-screen-share-toggled", {
+                channelId: activeVoiceChannel._id,
+                sharing: false
+            });
+        }
+        
+        // Automatically restore VoiceRoomView if it was hidden
+        setIsVoiceViewOpen(true);
+    };
+
+    const toggleVoiceScreenShare = async () => {
+        if (!activeVoiceChannel) return;
+
+        if (isVoiceScreenSharing) {
+            stopVoiceScreenShare();
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    displaySurface: "monitor",
+                    selfBrowserSurface: "exclude"
+                },
+                audio: false
+            });
+
+            const screenTrack = stream.getVideoTracks()[0];
+            voiceScreenTrackRef.current = screenTrack;
+            voiceLocalScreenStreamRef.current = stream;
+
+            const settings = screenTrack.getSettings();
+            if (settings.displaySurface === "monitor") {
+                setScreenShareWarning(true);
+            }
+
+            screenTrack.onended = () => {
+                stopVoiceScreenShare();
+            };
+
+            voicePeerConnectionsRef.current.forEach(async (pc, remoteUserId) => {
+                const sender = pc.addTrack(screenTrack, stream);
+                voiceScreenSendersRef.current.set(remoteUserId, sender);
+
+                try {
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    socket.emit("voice-webrtc-offer", {
+                        channelId: activeVoiceChannel._id,
+                        targetUserId: remoteUserId,
+                        offer
+                    });
+                } catch (err) {
+                    console.error("Screen share renegotiation failed for", remoteUserId, err);
+                }
+            });
+
+            setIsVoiceScreenSharing(true);
+            
+            // Only auto-hide the Voice UI if the user is sharing a monitor or window.
+            // If they are sharing a browser tab (especially the current one), keeping the DOM mounted prevents capture blackouts.
+            if (settings.displaySurface !== "browser") {
+                setIsVoiceViewOpen(false);
+            }
+
+            const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+            setVoiceParticipants(prev => prev.map(p => 
+                p.userId === currentUserId ? { ...p, isScreenSharing: true } : p
+            ));
+
+            if (socket.connected) {
+                socket.emit("voice-screen-share-toggled", {
+                    channelId: activeVoiceChannel._id,
+                    sharing: true
+                });
+            }
+        } catch (err) {
+            console.error("Failed to start screen share", err);
+            if (err.name !== "NotAllowedError" && err.name !== "AbortError") {
+                alert("Screen Share Error: " + err.message);
+            }
         }
     };
 
@@ -300,6 +451,11 @@ function Chat() {
             });
         }
 
+        if (voiceScreenTrackRef.current && voiceLocalScreenStreamRef.current) {
+            const sender = pc.addTrack(voiceScreenTrackRef.current, voiceLocalScreenStreamRef.current);
+            voiceScreenSendersRef.current.set(remoteUserId, sender);
+        }
+
         pc.onicecandidate = (event) => {
             if (event.candidate && socket.connected) {
                 socket.emit("voice-ice-candidate", {
@@ -312,7 +468,14 @@ function Chat() {
 
         pc.ontrack = (event) => {
             console.log(`[VOICE WEBRTC] Received track from ${remoteUserId}`);
-            voiceRemoteStreamsRef.current.set(remoteUserId, event.streams[0]);
+            const primaryStream = voiceRemoteStreamsRef.current.get(remoteUserId);
+            
+            if (!primaryStream) {
+                voiceRemoteStreamsRef.current.set(remoteUserId, event.streams[0]);
+            } else if (primaryStream.id !== event.streams[0].id) {
+                voiceRemoteScreenStreamsRef.current.set(remoteUserId, event.streams[0]);
+            }
+            
             setVoiceStreamsUpdate(prev => prev + 1);
         };
 
@@ -322,6 +485,8 @@ function Chat() {
                 pc.close();
                 voicePeerConnectionsRef.current.delete(remoteUserId);
                 voiceRemoteStreamsRef.current.delete(remoteUserId);
+                voiceRemoteScreenStreamsRef.current.delete(remoteUserId);
+                voiceScreenSendersRef.current.delete(remoteUserId);
                 setVoiceStreamsUpdate(prev => prev + 1);
             }
         };
@@ -759,34 +924,38 @@ function Chat() {
                 const currentUsername = currentUser.username;
                 const currentAvatar = currentUser.avatar;
                 
-                const participantObjs = users.map(uid => {
-                    const memberObj = members.find(m => m._id === uid);
-                    return {
-                        userId: uid,
-                        username: memberObj ? memberObj.username : "Unknown User",
-                        avatar: memberObj ? memberObj.avatar : "",
-                        isMuted: false,
-                        isVideoOn: false
-                    };
-                });
+                const participantObjs = users.map(u => ({
+                    userId: u.userId,
+                    username: u.username || "Unknown User",
+                    avatar: u.avatar || "",
+                    isMuted: u.isMuted || false,
+                    isVideoOn: u.isVideoOn || false,
+                    isScreenSharing: u.isScreenSharing || false
+                }));
 
-                // Add the current user manually
-                const alreadyHasMe = participantObjs.some(p => p.userId === currentUserId);
-                if (!alreadyHasMe) {
-                    participantObjs.push({
-                        userId: currentUserId,
-                        username: currentUsername + " (You)",
-                        avatar: currentAvatar,
-                        isMuted: isVoiceMuted,
-                        isVideoOn: isVoiceVideoOn
-                    });
+                // Replace the current user object in the array if it exists, or add it
+                const currentUserObj = {
+                    userId: currentUserId,
+                    username: currentUsername + " (You)",
+                    avatar: currentAvatar,
+                    isMuted: isVoiceMuted,
+                    isVideoOn: isVoiceVideoOn,
+                    isScreenSharing: isVoiceScreenSharing
+                };
+                
+                const existingIndex = participantObjs.findIndex(p => p.userId === currentUserId);
+                if (existingIndex !== -1) {
+                    participantObjs[existingIndex] = currentUserObj;
+                } else {
+                    participantObjs.push(currentUserObj);
                 }
                 
                 setVoiceParticipants(participantObjs);
                 setVoiceConnectionState("connected");
 
                 // Initiate WebRTC offers to existing participants
-                for (const uid of users) {
+                for (const u of users) {
+                    const uid = u.userId;
                     if (uid !== currentUserId) {
                         try {
                             const pc = createVoicePeerConnection(uid, channelId);
@@ -806,17 +975,17 @@ function Chat() {
         };
 
         const handleVoiceUserJoined = (data) => {
-            const { channelId, userId, username, avatar } = data;
+            const { channelId, user } = data;
             if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
                 const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
                 
-                if (userId !== currentUserId) {
+                if (user.userId !== currentUserId) {
                     playVoiceSound('join');
                 }
 
                 setVoiceParticipants(prev => {
-                    if (prev.some(p => p.userId === userId)) return prev;
-                    return [...prev, { userId, username, avatar, isMuted: false, isVideoOn: false }];
+                    if (prev.some(p => p.userId === user.userId)) return prev;
+                    return [...prev, user];
                 });
             }
         };
@@ -930,6 +1099,15 @@ function Chat() {
             }
         };
 
+        const handleVoiceScreenShareToggled = (data) => {
+            const { channelId, userId, sharing } = data;
+            if (activeVoiceChannel && activeVoiceChannel._id === channelId) {
+                setVoiceParticipants(prev => prev.map(p => 
+                    p.userId === userId ? { ...p, isScreenSharing: sharing } : p
+                ));
+            }
+        };
+
         const handleVoiceError = (data) => {
             alert("Voice Error: " + data.message);
             leaveVoiceChannel();
@@ -950,6 +1128,7 @@ function Chat() {
         socket.on("voice-ice-candidate", handleVoiceIceCandidate);
         socket.on("voice-mute-toggled", handleVoiceMuteToggled);
         socket.on("voice-video-toggled", handleVoiceVideoToggled);
+        socket.on("voice-screen-share-toggled", handleVoiceScreenShareToggled);
         socket.on("disconnect", handleDisconnect);
 
         return () => {
@@ -962,6 +1141,7 @@ function Chat() {
             socket.off("voice-ice-candidate", handleVoiceIceCandidate);
             socket.off("voice-mute-toggled", handleVoiceMuteToggled);
             socket.off("voice-video-toggled", handleVoiceVideoToggled);
+            socket.off("voice-screen-share-toggled", handleVoiceScreenShareToggled);
             socket.off("disconnect", handleDisconnect);
         };
     }, [activeVoiceChannel, members, isVoiceMuted]);
@@ -1550,14 +1730,13 @@ function Chat() {
         
         if (socket.connected) {
             socket.emit("join-voice-channel", {
-                channelId: channel._id
+                channelId: channel._id,
+                initialState: {
+                    isMuted: isVoiceMuted,
+                    isVideoOn: isVoiceVideoOn,
+                    isScreenSharing: isVoiceScreenSharing
+                }
             });
-            if (isVoiceMuted) {
-                socket.emit("voice-mute-toggled", { channelId: channel._id, muted: true });
-            }
-            if (isVoiceVideoOn) {
-                socket.emit("voice-video-toggled", { channelId: channel._id, videoOn: true });
-            }
         }
     };
 
@@ -1752,6 +1931,8 @@ function Chat() {
                         voiceLocalStreamRef={voiceLocalStreamRef}
                         voiceStreamsUpdate={voiceStreamsUpdate}
                         voiceConnectionState={voiceConnectionState}
+                        isVoiceViewOpen={isVoiceViewOpen}
+                        onToggleVoiceView={() => setIsVoiceViewOpen(!isVoiceViewOpen)}
                     />
                 )}
 
@@ -1767,6 +1948,11 @@ function Chat() {
                             toggleVoiceVideo={toggleVoiceVideo}
                             toggleVoiceMute={toggleVoiceMute}
                             leaveVoiceChannel={leaveVoiceChannel}
+                            isVoiceScreenSharing={isVoiceScreenSharing}
+                            toggleVoiceScreenShare={toggleVoiceScreenShare}
+                            voiceLocalScreenStreamRef={voiceLocalScreenStreamRef}
+                            voiceRemoteScreenStreamsRef={voiceRemoteScreenStreamsRef}
+                            onHide={() => setIsVoiceViewOpen(false)}
                         />
                     ) : (
                         <>
@@ -1918,6 +2104,40 @@ function Chat() {
                 )}
 
                 {/* Call Overlay UI */}
+                {screenShareWarning && (
+                    <div style={{
+                        position: "fixed",
+                        top: "24px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        backgroundColor: "#2b2d31",
+                        border: "1px solid #f0b232",
+                        borderRadius: "8px",
+                        padding: "16px 24px",
+                        boxShadow: "0 4px 15px rgba(0,0,0,0.5)",
+                        zIndex: 10000,
+                        color: "#f2f3f5",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "16px",
+                        maxWidth: "400px"
+                    }}>
+                        <div style={{ color: "#f0b232", flexShrink: 0 }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: "bold", marginBottom: "4px" }}>You're sharing your entire screen.</div>
+                            <div style={{ fontSize: "13px", color: "#b9bbbe", lineHeight: 1.4 }}>For the best experience and to prevent Nexus from appearing in your stream, share your game/app window instead.</div>
+                        </div>
+                        <button 
+                            onClick={() => setScreenShareWarning(false)}
+                            style={{ backgroundColor: "transparent", color: "#b9bbbe", border: "none", cursor: "pointer", padding: "4px" }}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                )}
+
                 {callState !== "idle" && activeCall && (
                     <div style={{
                         position: "absolute",

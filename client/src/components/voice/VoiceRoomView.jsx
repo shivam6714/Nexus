@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from "react";
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, MonitorUp, MonitorOff, Monitor, X, Minimize2 } from "lucide-react";
 
-function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, toggleVoiceMute, isVoiceVideoOn, toggleVoiceVideo }) {
+function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, toggleVoiceMute, isVoiceVideoOn, toggleVoiceVideo, isVoiceScreenSharing, toggleVoiceScreenShare }) {
     const videoRef = useRef(null);
     const audioRef = useRef(null);
 
@@ -65,6 +65,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
                     <>
                         {participant.isMuted ? <MicOff size={14} color="#da373c" /> : <Mic size={14} color="#b9bbbe" />}
                         {participant.isVideoOn ? <Video size={14} color="#23a559" /> : <VideoOff size={14} color="#b9bbbe" />}
+                        {participant.isScreenSharing && <Monitor size={14} color="#23a559" />}
                     </>
                 )}
             </div>
@@ -107,6 +108,24 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
                     >
                         {isVoiceVideoOn ? <Video size={18} /> : <VideoOff size={18} />}
                     </button>
+                    <button
+                        onClick={toggleVoiceScreenShare}
+                        style={{
+                            backgroundColor: isVoiceScreenSharing ? "#da373c" : "rgba(0,0,0,0.6)",
+                            color: "white",
+                            border: "none",
+                            padding: "8px",
+                            borderRadius: "50%",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "background-color 0.2s"
+                        }}
+                        title={isVoiceScreenSharing ? "Stop Sharing" : "Share Screen\n\nBest for games:\nShare the game/application window.\n\nEntire Screen:\nShares everything visible on the selected monitor."}
+                    >
+                        {isVoiceScreenSharing ? <MonitorOff size={18} /> : <MonitorUp size={18} />}
+                    </button>
                 </div>
             )}
 
@@ -126,9 +145,15 @@ function VoiceRoomView({
     isVoiceMuted,
     toggleVoiceVideo,
     toggleVoiceMute,
-    leaveVoiceChannel
+    leaveVoiceChannel,
+    isVoiceScreenSharing,
+    toggleVoiceScreenShare,
+    voiceLocalScreenStreamRef,
+    voiceRemoteScreenStreamsRef,
+    onHide
 }) {
     const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+    const primaryVideoRef = useRef(null);
 
     // Determine grid layout based on participant count
     const totalParticipants = voiceParticipants.length;
@@ -136,6 +161,25 @@ function VoiceRoomView({
     if (totalParticipants === 2) gridTemplateColumns = "1fr 1fr";
     else if (totalParticipants === 3 || totalParticipants === 4) gridTemplateColumns = "1fr 1fr";
     else if (totalParticipants > 4) gridTemplateColumns = "repeat(auto-fit, minmax(250px, 1fr))";
+    // Screen sharing layout determination
+    // ONLY display remote screen shares in the primary area.
+    // If the local user is sharing, they just see the normal participant grid.
+    const activeScreenSharer = voiceParticipants.find(p => p.userId !== currentUserId && p.isScreenSharing);
+    
+    let screenStream = null;
+    if (activeScreenSharer) {
+        screenStream = voiceRemoteScreenStreamsRef?.current?.get(activeScreenSharer.userId);
+    }
+
+    // Attach stream to primary video
+    useEffect(() => {
+        if (primaryVideoRef.current && screenStream) {
+            if (primaryVideoRef.current.srcObject !== screenStream) {
+                primaryVideoRef.current.srcObject = screenStream;
+            }
+        }
+    }, [screenStream]);
+
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", backgroundColor: "#313338" }}>
@@ -144,20 +188,83 @@ function VoiceRoomView({
                 <div style={{ fontWeight: "bold", fontSize: "16px", color: "#f2f3f5", display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ color: "#23a559" }}>🔊</span> {activeVoiceChannel?.name}
                 </div>
-                <div style={{ color: "#b9bbbe", fontSize: "14px" }}>
-                    {totalParticipants} participant{totalParticipants !== 1 && "s"}
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div style={{ color: "#b9bbbe", fontSize: "14px" }}>
+                        {totalParticipants} participant{totalParticipants !== 1 && "s"}
+                    </div>
+                    {isVoiceScreenSharing && (
+                        <button
+                            onClick={onHide}
+                            style={{
+                                backgroundColor: "rgba(255,255,255,0.1)",
+                                color: "#f2f3f5",
+                                border: "none",
+                                padding: "6px 12px",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                fontSize: "13px",
+                                fontWeight: "500",
+                                transition: "background-color 0.2s"
+                            }}
+                            title="Hide Voice UI"
+                        >
+                            <Minimize2 size={16} /> Hide
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Video Grid Area */}
-            <div style={{ flex: 1, padding: "16px", overflowY: "auto", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ flex: 1, padding: "16px", overflowY: "auto", display: "flex", flexDirection: activeScreenSharer ? "column" : "row", alignItems: "center", justifyContent: "center", gap: "16px" }}>
+                {/* Active Screen Share Area */}
+                {/* 
+                  * NOTE ON ENTIRE SCREEN CAPTURE & FULLSCREEN RECURSION:
+                  * When User A shares "Entire Screen" and User B fullscreen-displays the received stream 
+                  * on the SAME physical display that User A is capturing (e.g. testing locally with 2 windows), 
+                  * the OS screen capture will capture that fullscreen output.
+                  * This produces an unavoidable visual feedback loop.
+                  * This is an inherent OS/Browser limitation of capturing physical monitors, 
+                  * NOT a WebRTC recursion bug. Do NOT attempt to solve this by breaking the WebRTC connection!
+                  */}
+                {activeScreenSharer && (
+                    <div 
+                        onClick={() => {
+                            if (primaryVideoRef.current) {
+                                primaryVideoRef.current.requestFullscreen().catch(err => {
+                                    console.error("Error attempting to enable fullscreen:", err);
+                                });
+                            }
+                        }}
+                        style={{ flex: "1 1 auto", width: "100%", maxHeight: "70%", backgroundColor: "#000", borderRadius: "8px", overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", position: "relative", cursor: "pointer" }}
+                    >
+                        {screenStream && (
+                            <video
+                                ref={primaryVideoRef}
+                                autoPlay
+                                playsInline
+                                className="primary-screen-video"
+                            />
+                        )}
+                        <div style={{ position: "absolute", bottom: "16px", left: "16px", backgroundColor: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: "4px", color: "white", fontSize: "14px", fontWeight: "bold" }}>
+                            {activeScreenSharer.username}'s Screen
+                        </div>
+                    </div>
+                )}
+
+                {/* Participant Grid */}
                 <div style={{
-                    display: "grid",
-                    gridTemplateColumns: gridTemplateColumns,
+                    display: activeScreenSharer ? "flex" : "grid",
+                    gridTemplateColumns: activeScreenSharer ? "none" : gridTemplateColumns,
+                    flexDirection: activeScreenSharer ? "row" : "row",
+                    overflowX: activeScreenSharer ? "auto" : "visible",
                     gap: "16px",
                     width: "100%",
-                    height: "100%",
-                    maxHeight: "800px",
+                    height: activeScreenSharer ? "200px" : "100%",
+                    flexShrink: activeScreenSharer ? 0 : 1,
+                    maxHeight: activeScreenSharer ? "200px" : "800px",
                     alignContent: "center"
                 }}>
                     {voiceParticipants.map((p) => {
@@ -166,17 +273,20 @@ function VoiceRoomView({
                         const isVideoOn = p.isVideoOn || (isLocal && isVoiceVideoOn);
 
                         return (
-                            <VoiceGridTile 
-                                key={p.userId} 
-                                participant={p} 
-                                stream={stream} 
-                                isLocal={isLocal} 
-                                isVideoOn={isVideoOn}
-                                isVoiceMuted={isVoiceMuted}
-                                toggleVoiceMute={toggleVoiceMute}
-                                isVoiceVideoOn={isVoiceVideoOn}
-                                toggleVoiceVideo={toggleVoiceVideo}
-                            />
+                            <div key={p.userId} style={{ flex: activeScreenSharer ? "0 0 250px" : "1 1 auto", height: "100%" }}>
+                                <VoiceGridTile 
+                                    participant={p} 
+                                    stream={stream} 
+                                    isLocal={isLocal} 
+                                    isVideoOn={isVideoOn}
+                                    isVoiceMuted={isVoiceMuted}
+                                    toggleVoiceMute={toggleVoiceMute}
+                                    isVoiceVideoOn={isVoiceVideoOn}
+                                    toggleVoiceVideo={toggleVoiceVideo}
+                                    isVoiceScreenSharing={isVoiceScreenSharing}
+                                    toggleVoiceScreenShare={toggleVoiceScreenShare}
+                                />
+                            </div>
                         );
                     })}
                 </div>

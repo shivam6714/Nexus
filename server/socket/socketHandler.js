@@ -9,6 +9,7 @@ const Server = require("../models/Server");
 
 const voiceRooms = new Map();
 const userVoiceChannel = new Map();
+const voiceUserStates = new Map();
 
 const registerSocketHandlers = (io) => {
     io.on("connection", (socket) => {
@@ -586,7 +587,7 @@ const registerSocketHandlers = (io) => {
         // --- SERVER VOICE EVENTS ---
         socket.on("join-voice-channel", async (data) => {
             try {
-                const { channelId } = data;
+                const { channelId, initialState } = data;
                 if (!channelId) {
                     return socket.emit("voice-error", { message: "Voice channel is required." });
                 }
@@ -640,10 +641,22 @@ const registerSocketHandlers = (io) => {
                 }
                 const roomUsers = voiceRooms.get(channelId);
                 
+                // Update user state
+                const userState = {
+                    userId,
+                    username: socket.user.username,
+                    avatar: socket.user.avatar,
+                    isMuted: initialState?.isMuted || false,
+                    isVideoOn: initialState?.isVideoOn || false,
+                    isScreenSharing: initialState?.isScreenSharing || false
+                };
+                voiceUserStates.set(userId, userState);
+
                 // Send current participants to joiner (BEFORE adding them)
+                const currentUsers = Array.from(roomUsers).map(uid => voiceUserStates.get(uid)).filter(u => u);
                 socket.emit("voice-channel-users", {
                     channelId,
-                    users: [...roomUsers]
+                    users: currentUsers
                 });
 
                 // Add to room
@@ -653,9 +666,7 @@ const registerSocketHandlers = (io) => {
                 // Notify existing participants
                 socket.to(`voice-${channelId}`).emit("voice-user-joined", {
                     channelId,
-                    userId,
-                    username: socket.user.username,
-                    avatar: socket.user.avatar
+                    user: userState
                 });
 
                 console.log(`[Voice] ${socket.user.username} joined voice channel ${channelId}`);
@@ -674,6 +685,7 @@ const registerSocketHandlers = (io) => {
                 if (userVoiceChannel.get(userId) === channelId) {
                     socket.leave(`voice-${channelId}`);
                     userVoiceChannel.delete(userId);
+                    voiceUserStates.delete(userId);
 
                     const roomUsers = voiceRooms.get(channelId);
                     if (roomUsers) {
@@ -751,6 +763,9 @@ const registerSocketHandlers = (io) => {
                 return;
             }
 
+            const state = voiceUserStates.get(senderId);
+            if (state) state.isMuted = muted;
+
             socket.to(`voice-${channelId}`).emit("voice-mute-toggled", { channelId, userId: senderId, muted });
         });
 
@@ -762,7 +777,24 @@ const registerSocketHandlers = (io) => {
                 return;
             }
 
+            const state = voiceUserStates.get(senderId);
+            if (state) state.isVideoOn = videoOn;
+
             socket.to(`voice-${channelId}`).emit("voice-video-toggled", { channelId, userId: senderId, videoOn });
+        });
+
+        socket.on("voice-screen-share-toggled", (data) => {
+            const { channelId, sharing } = data;
+            const senderId = socket.user._id.toString();
+
+            if (userVoiceChannel.get(senderId) !== channelId) {
+                return;
+            }
+
+            const state = voiceUserStates.get(senderId);
+            if (state) state.isScreenSharing = sharing;
+
+            socket.to(`voice-${channelId}`).emit("voice-screen-share-toggled", { channelId, userId: senderId, sharing });
         });
 
         socket.on("disconnect", () => {
@@ -778,6 +810,7 @@ const registerSocketHandlers = (io) => {
             const voiceChannelId = userVoiceChannel.get(userId);
             if (voiceChannelId) {
                 userVoiceChannel.delete(userId);
+                voiceUserStates.delete(userId);
                 const roomUsers = voiceRooms.get(voiceChannelId);
                 if (roomUsers) {
                     roomUsers.delete(userId);
