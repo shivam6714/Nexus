@@ -113,15 +113,16 @@ function MessageInput({
         <div className="message-input-container" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 16px 16px' }}>
             {replyingTo && (
                 <div style={{
-                    backgroundColor: "#2b2d31",
+                    backgroundColor: "var(--bg-secondary)",
                     padding: "8px 12px",
-                    borderRadius: "8px",
+                    borderRadius: "var(--radius-sm)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    color: "#b9bbbe",
+                    color: "var(--text-secondary)",
                     fontSize: "14px",
-                    borderLeft: "4px solid #4f545c"
+                    borderLeft: "4px solid var(--border-subtle)",
+                    marginBottom: "8px"
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
                         <div
@@ -129,7 +130,7 @@ function MessageInput({
                                 width: "16px",
                                 height: "16px",
                                 borderRadius: "50%",
-                                backgroundColor: "#5865f2",
+                                backgroundColor: "var(--brand-primary)",
                                 color: "white",
                                 display: "flex",
                                 alignItems: "center",
@@ -150,7 +151,7 @@ function MessageInput({
                                 replyingTo.sender.username?.charAt(0).toUpperCase() || "U"
                             )}
                         </div>
-                        <span style={{ fontWeight: "bold", flexShrink: 0 }}>Replying to {replyingTo.sender?.username}</span>
+                        <span style={{ fontWeight: "bold", color: "var(--text-primary)", flexShrink: 0 }}>Replying to {replyingTo.sender?.username}</span>
                         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: 0.8 }}>
                             {replyingTo.content || (replyingTo.attachment ? "📷 Image" : "")}
                         </span>
@@ -158,7 +159,7 @@ function MessageInput({
                     <button 
                         onClick={onCancelReply}
                         type="button"
-                        style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px" }}
+                        style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px" }}
                         title="Cancel reply"
                     >
                         <X size={16} />
@@ -166,42 +167,44 @@ function MessageInput({
                 </div>
             )}
             {imagePreview && (
-                <div className="image-preview-wrapper" style={{ position: 'relative', width: 'fit-content', background: '#2B2D31', padding: '8px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div className="image-preview-wrapper" style={{ position: 'relative', width: 'fit-content', background: 'var(--bg-secondary)', padding: '8px', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                     <div style={{ position: 'relative' }}>
                         <img 
                             src={imagePreview} 
                             alt="Upload preview" 
-                            style={{ maxHeight: '150px', borderRadius: '4px', opacity: isUploading ? 0.5 : 1, display: 'block' }} 
+                            style={{ maxHeight: '150px', borderRadius: 'var(--radius-xs)', opacity: isUploading ? 0.5 : 1, display: 'block' }} 
                         />
                         <button 
                             onClick={removeImage}
                             type="button"
-                            style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#F23F42', color: 'white', borderRadius: '50%', padding: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'var(--status-danger)', color: 'white', borderRadius: '50%', padding: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-sm)' }}
                             title="Remove attachment"
                         >
                             <X size={14} />
                         </button>
                     </div>
                     {isUploading && (
-                        <div style={{ color: '#949BA4', fontSize: '12px', textAlign: 'center' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center' }}>
                             Uploading...
                         </div>
                     )}
                     {uploadError && (
-                        <div style={{ color: '#F23F42', fontSize: '12px', maxWidth: '200px', wordWrap: 'break-word' }}>
+                        <div style={{ color: 'var(--status-danger)', fontSize: '12px', maxWidth: '200px', wordWrap: 'break-word' }}>
                             {uploadError}
                         </div>
                     )}
                 </div>
             )}
-            <div className="message-input" style={{ margin: 0 }}>
+            <div className="message-input" style={{ margin: 0, padding: 0 }}>
                 <button
                     className="attachment-button"
                     onClick={() => fileInputRef.current?.click()}
                     type="button"
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#B5BAC1', padding: '0 8px', display: 'flex', alignItems: 'center' }}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0 12px', display: 'flex', alignItems: 'center', transition: 'color 0.2s' }}
+                    onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+                    onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                 >
-                    <ImageIcon size={20} />
+                    <ImageIcon size={22} />
                 </button>
                 <input
                     type="file"

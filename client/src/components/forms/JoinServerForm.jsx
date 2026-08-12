@@ -1,5 +1,4 @@
 import { useState } from "react";
-import "./JoinServerForm.css";
 
 function JoinServerForm({ onSubmit }) {
     const [inviteCode, setInviteCode] = useState("");
@@ -17,21 +16,27 @@ function JoinServerForm({ onSubmit }) {
     };
 
     return (
-        <form className="join-server-form" onSubmit={handleSubmit}>
-            <h2>Join a Server</h2>
+        <form className="modal-form" onSubmit={handleSubmit}>
+            <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "-8px" }}>
+                Enter an invite code to join an existing server.
+            </p>
 
-            <p>Enter an invite code to join an existing server.</p>
+            <div className="modal-input-group">
+                <label className="modal-label">INVITE LINK</label>
+                <input
+                    className="modal-input"
+                    type="text"
+                    placeholder="NXS-ABC123"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                />
+            </div>
 
-            <input
-                type="text"
-                placeholder="NXS-ABC123"
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
-            />
-
-            <button type="submit">
-                Join Server
-            </button>
+            <div className="modal-footer">
+                <button type="submit" className="modal-button modal-button-primary">
+                    Join Server
+                </button>
+            </div>
         </form>
     );
 }

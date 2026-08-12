@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MicOff } from "lucide-react";
+import { MicOff, Mic } from "lucide-react";
 
 function VoiceParticipant({ participant, stream, isLocal }) {
     const audioRef = useRef(null);
@@ -91,9 +91,15 @@ function VoiceParticipant({ participant, stream, isLocal }) {
                         </div>
                     )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#b5bac1", justifyContent: "space-between", padding: "0 4px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "var(--text-secondary)", justifyContent: "space-between", padding: "0 4px" }}>
                     <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{participant.username}</span>
-                    {participant.isMuted && <MicOff size={14} color="#da373c" />}
+                    {participant.isMuted ? (
+                        <MicOff size={14} color="var(--status-danger)" />
+                    ) : (
+                        isLocal && (
+                            <Mic size={14} color={isSpeaking ? "var(--status-online)" : "var(--text-secondary)"} style={{ filter: isSpeaking ? "drop-shadow(0 0 3px var(--status-online))" : "none", transition: "all 0.15s ease" }} />
+                        )
+                    )}
                 </div>
                 {!isLocal && stream && (
                     <audio 
@@ -108,7 +114,7 @@ function VoiceParticipant({ participant, stream, isLocal }) {
     }
 
     return (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#b5bac1", padding: "4px 0", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "var(--text-secondary)", padding: "4px 0", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
                 {participant.avatar ? (
                     <img 
@@ -119,7 +125,7 @@ function VoiceParticipant({ participant, stream, isLocal }) {
                             height: "24px", 
                             borderRadius: "50%", 
                             objectFit: "cover",
-                            border: isSpeaking ? "2px solid #23a559" : "2px solid transparent",
+                            border: isSpeaking ? "2px solid var(--status-online)" : "2px solid transparent",
                             transition: "border-color 0.15s ease"
                         }} 
                     />
@@ -128,14 +134,14 @@ function VoiceParticipant({ participant, stream, isLocal }) {
                         width: "24px", 
                         height: "24px", 
                         borderRadius: "50%", 
-                        backgroundColor: "#5865F2", 
+                        backgroundColor: "var(--brand-primary)", 
                         display: "flex", 
                         alignItems: "center", 
                         justifyContent: "center", 
                         color: "white", 
                         fontSize: "10px", 
                         flexShrink: 0,
-                        border: isSpeaking ? "2px solid #23a559" : "2px solid transparent",
+                        border: isSpeaking ? "2px solid var(--status-online)" : "2px solid transparent",
                         transition: "border-color 0.15s ease"
                     }}>
                         {participant.username.charAt(0).toUpperCase()}
@@ -144,7 +150,13 @@ function VoiceParticipant({ participant, stream, isLocal }) {
                 <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{participant.username}</span>
             </div>
             
-            {participant.isMuted && <MicOff size={14} color="#da373c" />}
+            {participant.isMuted ? (
+                <MicOff size={14} color="var(--status-danger)" />
+            ) : (
+                isLocal && (
+                    <Mic size={14} color={isSpeaking ? "var(--status-online)" : "var(--text-secondary)"} style={{ filter: isSpeaking ? "drop-shadow(0 0 3px var(--status-online))" : "none", transition: "all 0.15s ease" }} />
+                )
+            )}
             
             {!isLocal && stream && (
                 <audio 

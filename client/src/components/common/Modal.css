@@ -1,46 +1,140 @@
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.6);
-
+    background: rgba(0, 0, 0, 0.75);
     display: flex;
     justify-content: center;
     align-items: center;
-
     z-index: 999;
+    backdrop-filter: blur(2px);
 }
 
 .modal {
-    width: 420px;
-    background: #313338;
-    border-radius: 12px;
+    width: 440px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
     overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
-    padding: 18px 20px;
-
+    padding: 24px 24px 0 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    border-bottom: 1px solid #3f4147;
 }
 
 .modal-header h2 {
-    color: white;
-    font-size: 20px;
+    color: var(--text-primary);
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
 }
 
 .close-button {
     background: transparent;
     border: none;
-
-    color: white;
-    font-size: 24px;
+    color: var(--text-muted);
+    font-size: 28px;
+    line-height: 1;
     cursor: pointer;
+    transition: color 0.2s ease;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-button:hover {
+    color: var(--text-primary);
 }
 
 .modal-body {
-    padding: 20px;
+    padding: 16px 24px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Common Modal Form Styles */
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modal-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.modal-input {
+    padding: 10px 12px;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 16px;
+    transition: box-shadow 0.2s ease;
+}
+
+.modal-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--brand-primary);
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    background: var(--bg-secondary);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin: 0 -24px -24px -24px; /* bleed out of modal body padding */
+}
+
+.modal-button {
+    padding: 10px 24px;
+    border: none;
+    border-radius: var(--radius-xs);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-button-primary {
+    background: var(--brand-primary);
+    color: white;
+}
+
+.modal-button-primary:hover {
+    background: var(--brand-primary-hover);
+}
+
+.modal-button-secondary {
+    background: transparent;
+    color: var(--text-primary);
+}
+
+.modal-button-secondary:hover {
+    text-decoration: underline;
+}
+
+.modal-button-danger {
+    background: var(--status-danger);
+    color: white;
+}
+
+.modal-button-danger:hover {
+    background: var(--status-danger-hover);
 }

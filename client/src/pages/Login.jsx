@@ -29,10 +29,14 @@ function Login() {
             <div className="auth-card">
                 <h1 className="auth-title">Welcome Back</h1>
                 <p className="auth-subtitle">
-                    Login to continue to Nexus
+                    We're so excited to see you again!
                 </p>
 
                 <LoginForm onSubmit={handleLogin} />
+                
+                <div className="auth-switch">
+                    Need an account? <a href="/register" className="auth-switch-link" onClick={(e) => { e.preventDefault(); navigate('/register'); }}>Register</a>
+                </div>
             </div>
         </div>
     );

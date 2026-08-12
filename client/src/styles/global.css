@@ -1,3 +1,5 @@
+@import "./theme.css";
+
 * {
     margin: 0;
     padding: 0;
@@ -10,15 +12,36 @@ body,
     width: 100%;
     height: 100%;
     overflow: hidden;
-    font-family: Inter, "Segoe UI", sans-serif;
-    background: #313338;
-    color: white;
+    font-family: var(--font-primary);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 button {
     font: inherit;
+    cursor: pointer;
 }
 
-input {
+input, textarea {
     font: inherit;
+    font-family: var(--font-primary);
+}
+
+/* Base scrollbar styling for Webkit */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--bg-quaternary);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-subtle);
 }

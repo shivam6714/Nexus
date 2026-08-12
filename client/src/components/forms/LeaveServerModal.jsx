@@ -1,13 +1,14 @@
 import React from "react";
-import "./ServerOptions.css";
 
 const LeaveServerModal = ({ onCancel, onConfirm }) => {
     return (
-        <div style={{ padding: "20px", color: "white" }}>
-            <h2>Are you sure you want to leave this server?</h2>
-            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-                <button onClick={onCancel} className="server-option-btn secondary">Cancel</button>
-                <button onClick={onConfirm} className="server-option-btn danger" style={{ backgroundColor: "#ed4245" }}>Leave Server</button>
+        <div className="modal-form">
+            <p style={{ marginTop: "-8px", color: "var(--text-secondary)", lineHeight: "1.5", fontSize: "15px" }}>
+                Are you sure you want to leave this server? You won't be able to rejoin unless you are invited again.
+            </p>
+            <div className="modal-footer">
+                <button onClick={onCancel} className="modal-button modal-button-secondary">Cancel</button>
+                <button onClick={onConfirm} className="modal-button modal-button-danger">Leave Server</button>
             </div>
         </div>
     );

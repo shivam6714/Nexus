@@ -1,0 +1,52 @@
+/* Nexus Design System */
+
+:root {
+  /* Brand Colors */
+  --brand-primary: #5865F2; /* Nexus Accent */
+  --brand-primary-hover: #4752C4;
+  --brand-primary-active: #3C45A5;
+  
+  /* Status Colors */
+  --status-online: #23A559;
+  --status-offline: #80848E;
+  --status-danger: #DA373C;
+  --status-danger-hover: #A12828;
+  --status-warning: #F0B232;
+  
+  /* Background Colors - Dark Theme (Discord/Slack inspired) */
+  --bg-primary: #313338; /* Main chat area */
+  --bg-secondary: #2B2D31; /* Channel sidebar, Member sidebar */
+  --bg-tertiary: #1E1F22; /* Server sidebar, Inputs, Modals */
+  --bg-quaternary: #111214; /* Deepest dark for focus or empty states */
+  --bg-floating: #2B2D31; /* Tooltips, Popouts */
+  
+  /* Text Colors */
+  --text-primary: #F2F3F5;
+  --text-secondary: #B5BAC1;
+  --text-muted: #949BA4;
+  --text-link: #00A8FC;
+  
+  /* Interactive Backgrounds */
+  --bg-modifier-hover: rgba(255, 255, 255, 0.08);
+  --bg-modifier-active: rgba(255, 255, 255, 0.12);
+  --bg-modifier-selected: rgba(255, 255, 255, 0.16);
+  
+  /* Borders and Dividers */
+  --border-subtle: #3F4147;
+  --border-strong: #1E1F22;
+  
+  /* Shadows */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.24);
+  
+  /* Layout & Spacing */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-round: 50%;
+  
+  /* Typography */
+  --font-primary: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
+}

@@ -27,37 +27,46 @@ function DMSidebar({
                                 key={conv.conversationId}
                                 className={`channel-button ${selectedConversationId === conv.conversationId ? "active" : ""}`}
                                 onClick={() => navigate(`/chat/dm/${conv.conversationId}`, { state: { dmUser: conv.otherParticipant } })}
-                                style={{ display: 'flex', alignItems: 'center', gap: '10px', height: 'auto', padding: '8px' }}
+                                style={{ padding: '8px 10px', height: 'auto', gap: '12px' }}
                             >
-                                <div style={{ position: 'relative' }}>
+                                <div style={{ position: 'relative', flexShrink: 0 }}>
                                     <img
                                         src={conv.otherParticipant?.avatar ? `http://localhost:5000${conv.otherParticipant.avatar}` : `https://ui-avatars.com/api/?name=${conv.otherParticipant?.username || "User"}&background=random`}
                                         alt={conv.otherParticipant?.username || "User"}
-                                        style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
+                                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
                                     />
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: 0,
+                                        right: 0,
+                                        width: '12px',
+                                        height: '12px',
+                                        borderRadius: '50%',
+                                        backgroundColor: isOnline ? 'var(--status-online)' : 'var(--status-idle)',
+                                        border: '2px solid var(--bg-secondary)'
+                                    }}></div>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', overflow: 'hidden' }}>
-                                    <span style={{ fontWeight: '500', color: selectedConversationId === conv.conversationId ? '#fff' : '#8e9297' }}>
-                                        {isOnline ? "🟢 " : "🔴 "}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', overflow: 'hidden', flex: 1 }}>
+                                    <span style={{ fontWeight: '600', color: selectedConversationId === conv.conversationId ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                                         {conv.otherParticipant?.username || "User"}
                                     </span>
                                 {conv.lastMessagePreview && (
-                                    <span style={{ fontSize: '12px', color: '#8e9297', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px', textAlign: 'left' }}>
+                                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', textAlign: 'left', marginTop: '2px' }}>
                                         {conv.lastMessagePreview}
                                     </span>
                                 )}
                             </div>
                             {conv.unreadCount > 0 && (
                                 <div style={{
-                                    marginLeft: 'auto',
-                                    backgroundColor: '#f23f42',
+                                    backgroundColor: 'var(--status-danger)',
                                     color: 'white',
                                     fontSize: '12px',
                                     fontWeight: 'bold',
                                     borderRadius: '12px',
                                     padding: '2px 6px',
                                     minWidth: '16px',
-                                    textAlign: 'center'
+                                    textAlign: 'center',
+                                    flexShrink: 0
                                 }}>
                                     {conv.unreadCount}
                                 </div>

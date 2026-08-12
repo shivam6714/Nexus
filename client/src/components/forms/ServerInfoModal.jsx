@@ -1,43 +1,45 @@
-import "./ServerInfoModal.css";
 
 const ServerInfoModal = ({ serverInfo, onCopy, onClose }) => {
     if (!serverInfo) return null;
 
     return (
-        <div className="server-info-modal">
-            <div className="server-info-header">
+        <div className="modal-form">
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
                 {serverInfo.icon ? (
                     <img 
                         src={`http://localhost:5000${serverInfo.icon}`} 
                         alt={serverInfo.name} 
-                        className="server-info-icon" 
+                        style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }} 
                     />
                 ) : (
-                    <div className="server-info-icon-placeholder">
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "var(--brand-primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "20px", fontWeight: "bold" }}>
                         {serverInfo.name?.charAt(0).toUpperCase()}
                     </div>
                 )}
-                <h2>{serverInfo.name}</h2>
+                <h2 style={{ color: "var(--text-primary)", margin: 0, fontSize: "24px" }}>{serverInfo.name}</h2>
             </div>
 
-            <div className="server-info-body">
-                <div className="invite-section">
-                    <label>SERVER INVITE CODE</label>
-                    <div className="invite-code-display">
-                        <span className="invite-code">{serverInfo.inviteCode}</span>
-                        <button 
-                            className="server-option-btn primary"
-                            onClick={onCopy}
-                        >
-                            Copy
-                        </button>
+            <div className="modal-input-group">
+                <label className="modal-label">SERVER INVITE CODE</label>
+                <div style={{ display: "flex", gap: "12px" }}>
+                    <div 
+                        className="modal-input" 
+                        style={{ flex: 1, backgroundColor: "var(--bg-tertiary)", display: "flex", alignItems: "center", padding: "10px 12px", borderRadius: "var(--radius-xs)" }}
+                    >
+                        <span style={{ color: "var(--text-primary)" }}>{serverInfo.inviteCode}</span>
                     </div>
+                    <button 
+                        className="modal-button modal-button-primary"
+                        onClick={onCopy}
+                    >
+                        Copy
+                    </button>
                 </div>
             </div>
 
-            <div className="server-info-footer" style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
+            <div className="modal-footer">
                 <button 
-                    className="server-option-btn secondary" 
+                    className="modal-button modal-button-secondary" 
                     onClick={onClose}
                 >
                     Close

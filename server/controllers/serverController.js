@@ -134,7 +134,7 @@ const getServerMembers = async (req, res) => {
         const { serverId } = req.params;
 
         const server = await Server.findById(serverId)
-            .populate("members", "username email");
+            .populate("members", "username email avatar");
 
         if (!server) {
             return res.status(404).json({

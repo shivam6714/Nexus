@@ -371,6 +371,9 @@ function Chat() {
         try {
             const stream = await navigator.mediaDevices.getDisplayMedia({
                 video: {
+                    width: { ideal: 1920, max: 1920 },
+                    height: { ideal: 1080, max: 1080 },
+                    frameRate: { ideal: 30, max: 30 },
                     displaySurface: "monitor",
                     selfBrowserSurface: "exclude"
                 },
@@ -382,6 +385,7 @@ function Chat() {
             voiceLocalScreenStreamRef.current = stream;
 
             const settings = screenTrack.getSettings();
+            console.log(`[Screen Share] Captured Resolution: ${settings.width}x${settings.height} @ ${settings.frameRate} FPS`);
             if (settings.displaySurface === "monitor") {
                 setScreenShareWarning(true);
             }
@@ -392,6 +396,22 @@ function Chat() {
 
             voicePeerConnectionsRef.current.forEach(async (pc, remoteUserId) => {
                 const sender = pc.addTrack(screenTrack, stream);
+                
+                // Configure sender for 1080p high quality screen sharing
+                try {
+                    const parameters = sender.getParameters();
+                    if (!parameters.encodings) {
+                        parameters.encodings = [{}];
+                    }
+                    if (parameters.encodings.length > 0) {
+                        parameters.encodings[0].maxBitrate = 8000000; // 8 Mbps
+                        parameters.encodings[0].maxFramerate = 30;
+                        await sender.setParameters(parameters);
+                    }
+                } catch (err) {
+                    console.warn(`[Screen Share] Failed to set parameters for ${remoteUserId}`, err);
+                }
+
                 voiceScreenSendersRef.current.set(remoteUserId, sender);
 
                 try {
@@ -453,6 +473,22 @@ function Chat() {
 
         if (voiceScreenTrackRef.current && voiceLocalScreenStreamRef.current) {
             const sender = pc.addTrack(voiceScreenTrackRef.current, voiceLocalScreenStreamRef.current);
+            
+            // Configure sender for 1080p high quality screen sharing (late joiner)
+            try {
+                const parameters = sender.getParameters();
+                if (!parameters.encodings) {
+                    parameters.encodings = [{}];
+                }
+                if (parameters.encodings.length > 0) {
+                    parameters.encodings[0].maxBitrate = 8000000; // 8 Mbps
+                    parameters.encodings[0].maxFramerate = 30;
+                    sender.setParameters(parameters).catch(e => console.warn("Failed to set parameters on promise", e));
+                }
+            } catch (err) {
+                console.warn(`[Screen Share] Failed to set parameters for late joiner ${remoteUserId}`, err);
+            }
+
             voiceScreenSendersRef.current.set(remoteUserId, sender);
         }
 

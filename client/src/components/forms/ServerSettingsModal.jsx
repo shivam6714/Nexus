@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import "./ServerOptions.css";
 
 const ServerSettingsModal = ({ server, currentUser, onRename, onLeave }) => {
     const [newName, setNewName] = useState(server?.name || "");
@@ -11,43 +10,46 @@ const ServerSettingsModal = ({ server, currentUser, onRename, onLeave }) => {
     };
 
     return (
-        <div className="server-options">
-            <h2>Server Settings</h2>
-            <p>Manage {server?.name}</p>
+        <div className="modal-form">
+            <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "-8px" }}>
+                Manage {server?.name}
+            </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "8px" }}>
                 {isOwner && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <input
-                            type="text"
-                            value={newName}
-                            onChange={(e) => setNewName(e.target.value)}
-                            placeholder="New server name"
-                            style={{
-                                padding: "10px",
-                                borderRadius: "4px",
-                                border: "1px solid #202225",
-                                backgroundColor: "#e3e5e8",
-                                color: "#313338"
-                            }}
-                        />
-                        <button
-                            className="server-option-btn primary"
-                            onClick={handleRename}
-                            disabled={newName.trim() === server?.name || !newName.trim()}
-                        >
-                            Rename Server
-                        </button>
+                    <div className="modal-input-group">
+                        <label className="modal-label">Server Name</label>
+                        <div style={{ display: "flex", gap: "12px" }}>
+                            <input
+                                className="modal-input"
+                                type="text"
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                placeholder="New server name"
+                                style={{ flex: 1 }}
+                            />
+                            <button
+                                className="modal-button modal-button-primary"
+                                onClick={handleRename}
+                                disabled={newName.trim() === server?.name || !newName.trim()}
+                            >
+                                Rename
+                            </button>
+                        </div>
                     </div>
                 )}
                 
-                <button
-                    className="server-option-btn danger"
-                    onClick={onLeave}
-                    style={{ backgroundColor: "#ed4245", color: "white", marginTop: "16px" }}
-                >
-                    Leave Server
-                </button>
+                <div style={{ borderTop: "1px solid var(--border-subtle)", margin: "8px 0" }} />
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>Danger Zone</span>
+                    <button
+                        className="modal-button modal-button-danger"
+                        onClick={onLeave}
+                    >
+                        Leave Server
+                    </button>
+                </div>
             </div>
         </div>
     );

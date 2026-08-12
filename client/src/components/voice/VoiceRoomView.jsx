@@ -4,6 +4,59 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, MonitorUp, MonitorOff, Monitor,
 function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, toggleVoiceMute, isVoiceVideoOn, toggleVoiceVideo, isVoiceScreenSharing, toggleVoiceScreenShare }) {
     const videoRef = useRef(null);
     const audioRef = useRef(null);
+    const [isSpeaking, setIsSpeaking] = useState(false);
+
+    useEffect(() => {
+        if (!stream) {
+            setIsSpeaking(false);
+            return;
+        }
+
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.4;
+        
+        let source;
+        try {
+            source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+        } catch (err) {
+            console.error("Error creating audio source:", err);
+            return;
+        }
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let animationFrameId;
+
+        const checkSpeaking = () => {
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / dataArray.length;
+            
+            const speaking = average > 10;
+            setIsSpeaking(speaking && !(isLocal ? isVoiceMuted : participant.isMuted));
+
+            animationFrameId = requestAnimationFrame(checkSpeaking);
+        };
+
+        checkSpeaking();
+
+        return () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            try {
+                if (source) source.disconnect();
+                audioContext.close();
+            } catch (err) {
+                console.error("Cleanup error:", err);
+            }
+        };
+    }, [stream, isLocal ? isVoiceMuted : participant.isMuted]);
 
     useEffect(() => {
         if (videoRef.current && stream && isVideoOn) {
@@ -22,52 +75,53 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
     }, [stream, isLocal]);
 
     return (
-        <div style={{
-            position: "relative",
-            width: "100%",
-            height: "100%",
-            minHeight: "200px",
-            backgroundColor: "#111214",
-            borderRadius: "8px",
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 4px 6px rgba(0,0,0,0.3)"
-        }}>
-            {isVideoOn ? (
-                <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted={isLocal}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-            ) : (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-                    {participant.avatar ? (
-                        <img 
-                            src={participant.avatar.startsWith('http') ? participant.avatar : `http://localhost:5000${participant.avatar}`} 
-                            alt={participant.username} 
-                            style={{ width: "80px", height: "80px", borderRadius: "50%", objectFit: "cover" }} 
-                        />
-                    ) : (
-                        <div style={{ width: "80px", height: "80px", borderRadius: "50%", backgroundColor: "#5865F2", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "32px", fontWeight: "bold" }}>
-                            {participant.username.charAt(0).toUpperCase()}
-                        </div>
-                    )}
-                </div>
-            )}
-            
-            <div style={{ position: "absolute", bottom: "12px", left: "12px", backgroundColor: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: "4px", color: "white", fontSize: "14px", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
-                {participant.username}
-                {!isLocal && (
-                    <>
-                        {participant.isMuted ? <MicOff size={14} color="#da373c" /> : <Mic size={14} color="#b9bbbe" />}
-                        {participant.isVideoOn ? <Video size={14} color="#23a559" /> : <VideoOff size={14} color="#b9bbbe" />}
-                        {participant.isScreenSharing && <Monitor size={14} color="#23a559" />}
-                    </>
+            <div style={{
+                position: "relative",
+                width: "100%",
+                height: "100%",
+                minHeight: "200px",
+                backgroundColor: "var(--bg-tertiary)",
+                borderRadius: "var(--radius-md)",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: isSpeaking ? "0 0 0 3px var(--status-online)" : "var(--shadow-md)",
+                transition: "box-shadow 0.15s ease"
+            }}>
+                {isVideoOn ? (
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted={isLocal}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                ) : (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                        {participant.avatar ? (
+                            <img 
+                                src={participant.avatar.startsWith('http') ? participant.avatar : `http://localhost:5000${participant.avatar}`} 
+                                alt={participant.username} 
+                                style={{ width: "80px", height: "80px", borderRadius: "50%", objectFit: "cover", boxShadow: "var(--shadow-sm)", border: isSpeaking ? "3px solid var(--status-online)" : "3px solid transparent", transition: "border-color 0.15s ease" }} 
+                            />
+                        ) : (
+                            <div style={{ width: "80px", height: "80px", borderRadius: "50%", backgroundColor: "var(--brand-primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "32px", fontWeight: "bold", boxShadow: "var(--shadow-sm)", border: isSpeaking ? "3px solid var(--status-online)" : "3px solid transparent", transition: "border-color 0.15s ease" }}>
+                                {participant.username.charAt(0).toUpperCase()}
+                            </div>
+                        )}
+                    </div>
                 )}
+            
+            <div style={{ position: "absolute", bottom: "12px", left: "12px", backgroundColor: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: "var(--radius-xs)", color: "white", fontSize: "14px", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px", zIndex: 10 }}>
+                {participant.username} {isLocal && "(You)"}
+                {(isLocal ? isVoiceMuted : participant.isMuted) ? (
+                    <MicOff size={14} color="var(--status-danger)" />
+                ) : (
+                    <Mic size={14} color={isSpeaking ? "var(--status-online)" : "var(--text-muted)"} style={{ filter: isSpeaking ? "drop-shadow(0 0 3px var(--status-online))" : "none", transition: "all 0.15s ease" }} />
+                )}
+                {(isLocal ? isVideoOn : participant.isVideoOn) ? <Video size={14} color="var(--status-online)" /> : <VideoOff size={14} color="var(--text-muted)" />}
+                {(isLocal ? isVoiceScreenSharing : participant.isScreenSharing) && <Monitor size={14} color="var(--status-online)" />}
             </div>
 
             {isLocal && (
@@ -75,7 +129,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
                     <button
                         onClick={toggleVoiceMute}
                         style={{
-                            backgroundColor: isVoiceMuted ? "#da373c" : "rgba(0,0,0,0.6)",
+                            backgroundColor: isVoiceMuted ? "var(--status-danger)" : "rgba(0,0,0,0.6)",
                             color: "white",
                             border: "none",
                             padding: "8px",
@@ -93,7 +147,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
                     <button
                         onClick={toggleVoiceVideo}
                         style={{
-                            backgroundColor: !isVoiceVideoOn ? "#da373c" : "rgba(0,0,0,0.6)",
+                            backgroundColor: !isVoiceVideoOn ? "var(--status-danger)" : "rgba(0,0,0,0.6)",
                             color: "white",
                             border: "none",
                             padding: "8px",
@@ -111,7 +165,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
                     <button
                         onClick={toggleVoiceScreenShare}
                         style={{
-                            backgroundColor: isVoiceScreenSharing ? "#da373c" : "rgba(0,0,0,0.6)",
+                            backgroundColor: isVoiceScreenSharing ? "var(--status-danger)" : "rgba(0,0,0,0.6)",
                             color: "white",
                             border: "none",
                             padding: "8px",
@@ -182,25 +236,25 @@ function VoiceRoomView({
 
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", backgroundColor: "#313338" }}>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", backgroundColor: "var(--bg-primary)" }}>
             {/* Header */}
-            <div style={{ padding: "16px", borderBottom: "1px solid #1e1f22", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontWeight: "bold", fontSize: "16px", color: "#f2f3f5", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ color: "#23a559" }}>🔊</span> {activeVoiceChannel?.name}
+            <div style={{ padding: "16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ fontWeight: "bold", fontSize: "16px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ color: "var(--status-online)" }}>🔊</span> {activeVoiceChannel?.name}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                    <div style={{ color: "#b9bbbe", fontSize: "14px" }}>
+                    <div style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
                         {totalParticipants} participant{totalParticipants !== 1 && "s"}
                     </div>
                     {isVoiceScreenSharing && (
                         <button
                             onClick={onHide}
                             style={{
-                                backgroundColor: "rgba(255,255,255,0.1)",
-                                color: "#f2f3f5",
+                                backgroundColor: "var(--bg-tertiary)",
+                                color: "var(--text-primary)",
                                 border: "none",
                                 padding: "6px 12px",
-                                borderRadius: "4px",
+                                borderRadius: "var(--radius-sm)",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
@@ -209,6 +263,8 @@ function VoiceRoomView({
                                 fontWeight: "500",
                                 transition: "background-color 0.2s"
                             }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--bg-modifier-hover)"}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = "var(--bg-tertiary)"}
                             title="Hide Voice UI"
                         >
                             <Minimize2 size={16} /> Hide
@@ -293,22 +349,30 @@ function VoiceRoomView({
             </div>
 
             {/* Bottom Controls */}
-            <div style={{ padding: "16px", backgroundColor: "#2b2d31", display: "flex", justifyContent: "center", gap: "16px", borderTop: "1px solid #1e1f22" }}>
+            <div style={{ padding: "16px", backgroundColor: "var(--bg-secondary)", display: "flex", justifyContent: "center", gap: "16px", borderTop: "1px solid var(--border-subtle)" }}>
                 <button
                     onClick={leaveVoiceChannel}
                     style={{
-                        backgroundColor: "#da373c",
+                        backgroundColor: "var(--status-danger)",
                         color: "white",
                         border: "none",
                         padding: "12px 24px",
-                        borderRadius: "8px",
+                        borderRadius: "var(--radius-sm)",
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
                         gap: "8px",
                         fontSize: "14px",
                         fontWeight: "500",
-                        transition: "background-color 0.2s"
+                        transition: "all 0.2s ease"
+                    }}
+                    onMouseOver={(e) => {
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                        e.currentTarget.style.boxShadow = "var(--shadow-md)";
+                    }}
+                    onMouseOut={(e) => {
+                        e.currentTarget.style.transform = "none";
+                        e.currentTarget.style.boxShadow = "none";
                     }}
                 >
                     <PhoneOff size={20} /> Leave

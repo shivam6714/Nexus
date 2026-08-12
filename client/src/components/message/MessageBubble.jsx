@@ -86,23 +86,22 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
             className="message-bubble"
             style={{
                 position: "relative",
-                backgroundColor: highlightedMessageId === message._id ? "rgba(42, 59, 237, 0.4)" : "#24262a",
-                transition: "background-color 0.2s ease",
-                borderRadius: "10px",
-                padding: "12px 14px",
-                marginBottom: "10px",
+                backgroundColor: highlightedMessageId === message._id ? "var(--bg-modifier-selected)" : "transparent",
+                transition: "background-color 0.1s ease",
+                padding: "2px 48px 2px 72px", /* Left padding accommodates avatar */
+                marginTop: "16px", /* Space out messages */
                 width: "100%",
                 boxSizing: "border-box",
                 wordBreak: "break-word"
             }}
             onMouseOver={(e) => {
                 if (highlightedMessageId !== message._id) {
-                    e.currentTarget.style.backgroundColor = "#2a2c30";
+                    e.currentTarget.style.backgroundColor = "var(--bg-modifier-hover)";
                 }
             }}
             onMouseOut={(e) => {
                 if (highlightedMessageId !== message._id) {
-                    e.currentTarget.style.backgroundColor = "#24262a";
+                    e.currentTarget.style.backgroundColor = "transparent";
                 }
             }}
         >
@@ -112,26 +111,26 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                     style={{
                         display: "flex",
                         alignItems: "center",
-                        color: "#b9bbbe",
+                        color: "var(--text-muted)",
                         fontSize: "12px",
                         marginBottom: "4px",
                         gap: "6px",
                         cursor: "pointer",
                         padding: "2px 4px",
-                        borderRadius: "4px",
+                        borderRadius: "var(--radius-xs)",
                         marginLeft: "-4px"
                     }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--bg-modifier-hover)"}
                     onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                     title="Jump to original message"
                 >
-                    <div style={{ width: "20px", height: "1px", backgroundColor: "#4f545c", borderLeft: "2px solid #4f545c", borderTop: "2px solid #4f545c", borderRadius: "4px 0 0 0", marginTop: "10px" }} />
+                    <div style={{ width: "20px", height: "1px", backgroundColor: "var(--border-subtle)", borderLeft: "2px solid var(--border-subtle)", borderTop: "2px solid var(--border-subtle)", borderRadius: "4px 0 0 0", marginTop: "10px" }} />
                     <div
                         style={{
                             width: "16px",
                             height: "16px",
                             borderRadius: "50%",
-                            backgroundColor: "#5865f2",
+                            backgroundColor: "var(--brand-primary)",
                             color: "white",
                             display: "flex",
                             alignItems: "center",
@@ -153,19 +152,21 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                         )}
                     </div>
                     <strong>{message.replyTo.sender.username}</strong>
-                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "300px", cursor: "pointer" }}>
+                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "300px", cursor: "pointer", color: "var(--text-secondary)" }}>
                         {message.replyTo.content || "Attachment"}
                     </span>
                 </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
                     <div
                         style={{
+                            position: "absolute",
+                            left: "16px",
                             width: "40px",
                             height: "40px",
                             borderRadius: "50%",
-                            backgroundColor: "#5865f2",
+                            backgroundColor: "var(--brand-primary)",
                             color: "white",
                             display: "flex",
                             alignItems: "center",
@@ -173,7 +174,9 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                             fontSize: "18px",
                             fontWeight: "bold",
                             flexShrink: 0,
-                            overflow: "hidden"
+                            overflow: "hidden",
+                            marginTop: "2px",
+                            cursor: "pointer"
                         }}
                     >
                         {message.sender.avatar ? (
@@ -186,13 +189,15 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                             message.sender.username?.charAt(0).toUpperCase() || "U"
                         )}
                     </div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                        <strong>{message.sender.username}</strong>
-                        {formatMessageTime(message.createdAt) && (
-                            <span style={{ fontSize: "11.5px", color: "#949ba4", fontWeight: "500" }}>
-                                {formatMessageTime(message.createdAt)}
-                            </span>
-                        )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px", width: "100%" }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "8px", lineHeight: "1.375rem" }}>
+                            <strong style={{ color: "var(--text-primary)", fontSize: "16px", fontWeight: "500", cursor: "pointer" }}>{message.sender.username}</strong>
+                            {formatMessageTime(message.createdAt) && (
+                                <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "400" }}>
+                                    {formatMessageTime(message.createdAt)}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div style={{ display: "flex", gap: "8px", fontSize: "12px", position: "relative" }}>
@@ -200,7 +205,9 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                         <>
                             <button
                                 onClick={() => setShowReactions(!showReactions)}
-                                style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", padding: 0 }}
+                                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", borderRadius: "var(--radius-xs)" }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--bg-modifier-hover)"}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                                 title="Add reaction"
                             >
                                 😊+
@@ -210,14 +217,14 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                                     position: "absolute",
                                     top: "100%",
                                     right: 0,
-                                    backgroundColor: "#2f3136",
-                                    border: "1px solid #202225",
-                                    borderRadius: "4px",
+                                    backgroundColor: "var(--bg-tertiary)",
+                                    border: "1px solid var(--border-subtle)",
+                                    borderRadius: "var(--radius-sm)",
                                     padding: "4px",
                                     display: "flex",
                                     gap: "4px",
                                     zIndex: 10,
-                                    boxShadow: "0 4px 6px rgba(0,0,0,0.3)"
+                                    boxShadow: "var(--shadow-md)"
                                 }}>
                                     {["👍", "❤️", "😂", "😮", "😢", "😡"].map(emoji => (
                                         <button
@@ -234,7 +241,7 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                                                 padding: "4px",
                                                 borderRadius: "4px"
                                             }}
-                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#40444b"}
+                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--bg-modifier-hover)"}
                                             onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                                         >
                                             {emoji}
@@ -244,7 +251,9 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                             )}
                             <button
                                 onClick={() => onReply(message)}
-                                style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", padding: 0 }}
+                                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", borderRadius: "var(--radius-xs)" }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--bg-modifier-hover)"}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                             >
                                 Reply
                             </button>
@@ -254,13 +263,17 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                         <>
                             <button
                                 onClick={() => setIsEditing(true)}
-                                style={{ background: "none", border: "none", color: "#b9bbbe", cursor: "pointer", padding: 0 }}
+                                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", borderRadius: "var(--radius-xs)" }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--bg-modifier-hover)"}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                             >
                                 Edit
                             </button>
                             <button
                                 onClick={() => onDelete(message._id)}
-                                style={{ background: "none", border: "none", color: "#f23f42", cursor: "pointer", padding: 0 }}
+                                style={{ background: "none", border: "none", color: "var(--status-danger)", cursor: "pointer", padding: "4px", borderRadius: "var(--radius-xs)" }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(218, 55, 60, 0.1)"}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                             >
                                 Delete
                             </button>
@@ -270,44 +283,47 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
             </div>
 
             {isEditing ? (
-                <div style={{ marginTop: "8px" }}>
+                <div style={{ paddingLeft: "56px", marginTop: "4px" }}>
                     <textarea
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                         style={{
                             width: "100%",
-                            padding: "8px",
-                            borderRadius: "4px",
-                            border: "1px solid #202225",
-                            backgroundColor: "#40444b",
-                            color: "#dcddde",
+                            padding: "8px 12px",
+                            borderRadius: "var(--radius-sm)",
+                            border: "none",
+                            backgroundColor: "var(--bg-tertiary)",
+                            color: "var(--text-primary)",
                             resize: "vertical",
-                            minHeight: "60px",
-                            fontFamily: "inherit"
+                            minHeight: "44px",
+                            fontFamily: "inherit",
+                            fontSize: "15px",
+                            lineHeight: "1.5",
+                            outline: "none"
                         }}
                     />
                     <div style={{ display: "flex", gap: "8px", marginTop: "8px", fontSize: "12px" }}>
                         <button
                             onClick={handleSave}
-                            style={{ background: "#5865F2", color: "white", border: "none", padding: "4px 12px", borderRadius: "3px", cursor: "pointer" }}
+                            style={{ background: "var(--brand-primary)", color: "white", border: "none", padding: "4px 12px", borderRadius: "3px", cursor: "pointer" }}
                         >
                             Save
                         </button>
                         <button
                             onClick={handleCancel}
-                            style={{ background: "transparent", color: "#b9bbbe", border: "none", padding: "4px 12px", cursor: "pointer", textDecoration: "underline" }}
+                            style={{ background: "transparent", color: "var(--text-muted)", border: "none", padding: "4px 12px", cursor: "pointer", textDecoration: "underline" }}
                         >
                             Cancel
                         </button>
                     </div>
                 </div>
             ) : (
-                <div style={{ margin: "4px 0 0 0" }}>
+                <div style={{ margin: "2px 0 0 0" }}>
                     {message.content && (
-                        <p style={{ margin: 0, wordBreak: "break-word" }}>
+                        <p style={{ margin: 0, wordBreak: "break-word", color: "var(--text-secondary)", fontSize: "15px", lineHeight: "1.5" }}>
                             {message.content}
                             {message.edited && (
-                                <span style={{ fontSize: "11px", color: "#72767d", marginLeft: "6px" }}>(edited)</span>
+                                <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "6px" }}>(edited)</span>
                             )}
                         </p>
                     )}
@@ -333,7 +349,7 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                     )}
 
                     {message.attachment && imageError && (
-                        <div style={{ fontSize: "12px", color: "#f23f42", marginTop: message.content ? "8px" : "0" }}>
+                        <div style={{ fontSize: "12px", color: "var(--status-danger)", marginTop: message.content ? "8px" : "0" }}>
                             Image failed to load
                         </div>
                     )}
@@ -355,17 +371,28 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                                             display: "flex",
                                             alignItems: "center",
                                             gap: "4px",
-                                            background: hasReacted ? "rgba(88, 101, 242, 0.3)" : "#2f3136",
-                                            border: `1px solid ${hasReacted ? "#5865F2" : "transparent"}`,
-                                            borderRadius: "4px",
+                                            background: hasReacted ? "rgba(88, 101, 242, 0.15)" : "var(--bg-tertiary)",
+                                            border: `1px solid ${hasReacted ? "var(--brand-primary)" : "transparent"}`,
+                                            borderRadius: "var(--radius-sm)",
                                             padding: "2px 6px",
                                             cursor: "pointer",
-                                            color: hasReacted ? "#ffffff" : "#dcddde",
-                                            fontSize: "12px"
+                                            color: hasReacted ? "var(--text-primary)" : "var(--text-secondary)",
+                                            fontSize: "12px",
+                                            transition: "all 0.1s ease"
+                                        }}
+                                        onMouseOver={(e) => {
+                                            if (!hasReacted) {
+                                                e.currentTarget.style.border = "1px solid var(--border-subtle)";
+                                            }
+                                        }}
+                                        onMouseOut={(e) => {
+                                            if (!hasReacted) {
+                                                e.currentTarget.style.border = "1px solid transparent";
+                                            }
                                         }}
                                     >
                                         <span>{reaction.emoji}</span>
-                                        <span style={{ fontWeight: "bold" }}>{reaction.users.length}</span>
+                                        <span style={{ fontWeight: "600" }}>{reaction.users.length}</span>
                                     </button>
                                 );
                             })}

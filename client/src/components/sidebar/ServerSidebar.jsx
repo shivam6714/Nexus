@@ -60,66 +60,63 @@ function ServerSidebar({
                 />
             </div>
 
-            <div className="nav-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                <button 
-                    className={`server-button ${isChat ? "active" : ""}`}
-                    onClick={() => navigate("/chat")}
-                    title="Chat"
-                >
-                    💬
-                </button>
-                <button 
-                    className={`server-button ${isFriends ? "active" : ""}`}
-                    onClick={() => navigate("/friends")}
-                    title="Friends"
-                >
-                    👥
-                </button>
-                <div style={{ width: '32px', height: '2px', backgroundColor: '#3f4147', borderRadius: '1px', marginTop: '4px' }}></div>
+            <div className="nav-buttons" style={{ display: 'flex', flexDirection: 'column', width: '100%', marginBottom: '8px', alignItems: 'center' }}>
+                <div className="server-button-wrapper">
+                    <button 
+                        className={`server-button ${isChat ? "active" : ""}`}
+                        onClick={() => navigate("/chat")}
+                        title="Chat"
+                    >
+                        💬
+                    </button>
+                </div>
+                <div className="server-button-wrapper">
+                    <button 
+                        className={`server-button ${isFriends ? "active" : ""}`}
+                        onClick={() => navigate("/friends")}
+                        title="Friends"
+                    >
+                        👥
+                    </button>
+                </div>
+                <div style={{ width: '32px', height: '2px', backgroundColor: 'var(--border-subtle)', borderRadius: '1px', marginTop: '8px' }}></div>
             </div>
 
             <div className="server-list">
                 {servers.map((server) => (
-
-                    <button
-                        key={server._id}
-                        className={`server-button
-    ${selectedServer?._id === server._id ? "active" : ""}
-    ${currentUser?._id === server.owner ? "owner" : ""}
-`}
-                        onClick={() => {
-                            onSelectServer(server);
-
-                            const isOwner =
-                                currentUser?._id === server.owner;
-
-                            if (
-                                isOwner &&
-                                selectedServer?._id === server._id
-                            ) {
-                                fileInputRef.current.click();
-                            }
-                        }}
-                        title={server.name}
-                    >
-                        {server.icon ? (
-                            <img
-                                src={`http://localhost:5000${server.icon}`}
-                                alt={server.name}
-                                className="server-icon-image"
-                            />
-                        ) : (
-                            server.name.charAt(0).toUpperCase()
-                        )}
-                    </button>
+                    <div className="server-button-wrapper" key={server._id}>
+                        <button
+                            className={`server-button ${selectedServer?._id === server._id ? "active" : ""} ${currentUser?._id === server.owner ? "owner" : ""}`}
+                            onClick={() => {
+                                onSelectServer(server);
+                                const isOwner = currentUser?._id === server.owner;
+                                if (isOwner && selectedServer?._id === server._id) {
+                                    fileInputRef.current.click();
+                                }
+                            }}
+                            title={server.name}
+                        >
+                            {server.icon ? (
+                                <img
+                                    src={`http://localhost:5000${server.icon}`}
+                                    alt={server.name}
+                                    className="server-icon-image"
+                                />
+                            ) : (
+                                server.name.charAt(0).toUpperCase()
+                            )}
+                        </button>
+                    </div>
                 ))}
-                <button
-                    className="server-button add-server"
-                    onClick={onCreateServer}
-                    title="Create Server"
-                >
-                    +
-                </button>
+                <div className="server-button-wrapper">
+                    <button
+                        className="server-button add-server"
+                        onClick={onCreateServer}
+                        title="Create Server"
+                    >
+                        +
+                    </button>
+                </div>
             </div>
 
             <div className="server-bottom">

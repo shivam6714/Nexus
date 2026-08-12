@@ -1,34 +1,33 @@
 import React from "react";
-// Re-use existing server options styles for consistency
-import "./ServerOptions.css";
 
 const ServerActionsModal = ({ onServerInfo, onManageServer, onLeaveServer }) => {
     return (
-        <div className="server-options">
-            <h2>Server Actions</h2>
-            <p>Manage the current server.</p>
+        <div className="modal-form">
+            <p style={{ marginTop: "-8px", color: "var(--text-secondary)", fontSize: "14px" }}>
+                Manage the current server.
+            </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
                 <button
-                    className="server-option-btn secondary"
+                    className="modal-button modal-button-secondary"
+                    style={{ textAlign: "left", padding: "12px 16px", backgroundColor: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)" }}
                     onClick={onServerInfo}
                 >
                     Server Info
                 </button>
-
-                {/* Additional future actions like Server Settings or Roles can be cleanly inserted here */}
                 
                 <button
-                    className="server-option-btn primary"
+                    className="modal-button modal-button-secondary"
+                    style={{ textAlign: "left", padding: "12px 16px", backgroundColor: "var(--bg-tertiary)", borderRadius: "var(--radius-sm)" }}
                     onClick={onManageServer}
                 >
                     Manage Server
                 </button>
 
                 <button
-                    className="server-option-btn danger"
+                    className="modal-button modal-button-danger"
+                    style={{ textAlign: "left", padding: "12px 16px", borderRadius: "var(--radius-sm)", marginTop: "8px" }}
                     onClick={onLeaveServer}
-                    style={{ backgroundColor: "#ed4245", color: "white", marginTop: "16px" }}
                 >
                     Leave Server
                 </button>

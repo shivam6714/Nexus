@@ -1,119 +1,130 @@
 .server-sidebar {
     width: 72px;
     height: 100%;
-
-    background: #1e1f22;
-
+    background: var(--bg-tertiary);
     display: flex;
     flex-direction: column;
     align-items: center;
-
     padding: 12px 0;
-    gap: 14px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .server-logo {
     width: 48px;
     height: 48px;
-    border-radius: 16px;
-
-    background: #5865f2;
-    color: white;
-
+    border-radius: var(--radius-lg);
+    background: var(--bg-primary);
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     justify-content: center;
-
     font-size: 22px;
     font-weight: bold;
-
     cursor: pointer;
-    transition: 0.2s;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
 }
 
 .server-logo:hover {
-    border-radius: 12px;
+    border-radius: var(--radius-md);
+    background: var(--brand-primary);
 }
 
-.server-list {
+.server-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Base button wrapper for the active indicator */
+.server-button-wrapper {
+    position: relative;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 8px;
 }
 
 .server-button {
     width: 48px;
     height: 48px;
-
     border: none;
-    border-radius: 50%;
-
-    background: #313338;
-    color: white;
-
-    font-weight: bold;
-    font-size: 18px;
-
+    border-radius: var(--radius-round);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 16px;
     cursor: pointer;
     transition: all 0.2s ease;
-}
-
-.server-button:hover {
-    background: #5865f2;
-    border-radius: 16px;
-    transform: scale(1.05);
-}
-
-.server-button.active {
-    background: #5865f2;
-    border-radius: 16px;
-}
-
-.add-server {
-    background: #2b2d31;
-    color: #23a55a;
-    font-size: 28px;
-    font-weight: bold;
-    transition: 0.2s;
-}
-
-.add-server:hover {
-    background: #23a55a;
-    color: white;
-}
-
-.logout-button {
-    margin-top: auto;
-
-    width: 48px;
-    height: 48px;
-
-    border: none;
-    border-radius: 50%;
-
-    background: #313338;
-    color: #ed4245;
-
-    font-size: 14px;
-    font-weight: 600;
-
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.logout-button:hover {
-    background: #ed4245;
-    color: white;
-    border-radius: 16px;
-}
-
-.server-sidebar {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* The active/hover pill indicator */
+.server-button::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    background: var(--text-primary);
+    border-radius: 0 4px 4px 0;
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.server-button:hover::before {
+    opacity: 1;
+    height: 20px;
+}
+
+.server-button.active::before {
+    opacity: 1;
+    height: 40px;
+}
+
+.server-button:hover,
+.server-button.active {
+    background: var(--brand-primary);
+    border-radius: var(--radius-lg);
+    color: white;
+}
+
+.server-button.add-server {
+    color: var(--status-online);
+    background: var(--bg-primary);
+    font-size: 24px;
+    font-weight: 400;
+}
+
+.server-button.add-server:hover {
+    background: var(--status-online);
+    color: white;
 }
 
 .server-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
     flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Hide scrollbar for server list */
+.server-list::-webkit-scrollbar {
+    display: none;
+}
+.server-list {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 .server-bottom {
@@ -121,35 +132,41 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    padding-bottom: 16px;
+    gap: 8px;
+    padding-bottom: 12px;
+    width: 100%;
 }
 
-.server-logo {
-    width: 56px;
-    height: 56px;
-
+.logout-button {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: var(--radius-round);
+    background: var(--bg-primary);
+    color: var(--status-danger);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+}
 
-    margin-bottom: 12px;
+.logout-button:hover {
+    background: var(--status-danger);
+    color: white;
+    border-radius: var(--radius-lg);
 }
-.server-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    user-select: none;
-    pointer-events: none;
-    
-}
+
 .server-icon-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%;
+    border-radius: inherit;
     display: block;
 }
+
 .server-button.owner {
-    cursor: pointer;
+    /* No special visual change needed for owner right now, handled by hover/active */
 }

@@ -3,27 +3,106 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #313338;
+    background: var(--bg-primary);
     padding: 20px;
 }
 
 .auth-card {
-    background: #2b2d31;
-    padding: 40px;
-    border-radius: 12px;
-    width: 420px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    background: var(--bg-secondary);
+    padding: 32px;
+    border-radius: var(--radius-md);
+    width: 480px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .auth-title {
     text-align: center;
-    color: white;
+    color: var(--text-primary);
     margin-bottom: 8px;
+    font-size: 24px;
+    font-weight: 600;
 }
 
 .auth-subtitle {
     text-align: center;
-    color: #b5bac1;
+    color: var(--text-secondary);
     margin-bottom: 24px;
+    font-size: 15px;
+}
+
+.auth-switch {
+    margin-top: 16px;
     font-size: 14px;
+    color: var(--text-secondary);
+    text-align: left;
+    width: 100%;
+}
+
+.auth-switch-link {
+    color: var(--text-link);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-switch-link:hover {
+    text-decoration: underline;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+.auth-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.auth-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.auth-input {
+    padding: 10px 12px;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 16px;
+    transition: box-shadow 0.2s ease;
+}
+
+.auth-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--brand-primary);
+}
+
+.auth-button {
+    margin-top: 8px;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: var(--brand-primary);
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.auth-button:hover {
+    background: var(--brand-primary-hover);
+}
+
+.auth-button:active {
+    background: var(--brand-primary-active);
 }

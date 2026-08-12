@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import "./ServerOptions.css"; // Reuse existing button styles
-
 const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }) => {
     const [selectedMemberId, setSelectedMemberId] = useState(null);
 
@@ -8,9 +6,8 @@ const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }
     const eligibleMembers = members.filter((m) => m._id !== currentOwnerId);
 
     return (
-        <div className="server-options" style={{ width: "400px" }}>
-            <h2>Transfer Ownership</h2>
-            <p style={{ color: "#b9bbbe", marginBottom: "16px" }}>
+        <div className="modal-form">
+            <p style={{ marginTop: "-8px", color: "var(--text-secondary)", fontSize: "14px", lineHeight: "1.5" }}>
                 You must transfer ownership before leaving. Select a new owner from the list below:
             </p>
 
@@ -21,14 +18,13 @@ const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }
                     display: "flex",
                     flexDirection: "column",
                     gap: "8px",
-                    backgroundColor: "#2b2d31",
+                    backgroundColor: "var(--bg-tertiary)",
                     padding: "8px",
-                    borderRadius: "8px",
-                    marginBottom: "20px"
+                    borderRadius: "var(--radius-sm)"
                 }}
             >
                 {eligibleMembers.length === 0 ? (
-                    <p style={{ color: "#72767d", textAlign: "center", padding: "20px 0" }}>
+                    <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "20px 0", margin: 0, fontSize: "14px" }}>
                         No eligible members found.
                     </p>
                 ) : (
@@ -41,9 +37,9 @@ const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }
                                 alignItems: "center",
                                 gap: "12px",
                                 padding: "8px",
-                                borderRadius: "4px",
+                                borderRadius: "var(--radius-xs)",
                                 cursor: "pointer",
-                                backgroundColor: selectedMemberId === member._id ? "#404249" : "transparent",
+                                backgroundColor: selectedMemberId === member._id ? "var(--bg-modifier-selected)" : "transparent",
                                 transition: "background-color 0.1s ease-in-out"
                             }}
                         >
@@ -59,7 +55,7 @@ const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }
                                         width: "32px",
                                         height: "32px",
                                         borderRadius: "50%",
-                                        backgroundColor: "#5865f2",
+                                        backgroundColor: "var(--brand-primary)",
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "center",
@@ -70,32 +66,26 @@ const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }
                                     {member.username?.charAt(0).toUpperCase()}
                                 </div>
                             )}
-                            <span style={{ color: "#f2f3f5", fontWeight: "500" }}>{member.username}</span>
+                            <span style={{ color: "var(--text-primary)", fontWeight: "500", fontSize: "15px" }}>{member.username}</span>
                         </div>
                     ))
                 )}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+            <div className="modal-footer">
                 <button
                     onClick={onClose}
-                    className="server-option-btn secondary"
-                    style={{ margin: 0, width: "auto", padding: "10px 24px" }}
+                    className="modal-button modal-button-secondary"
                 >
                     Cancel
                 </button>
                 <button
                     onClick={() => onTransfer(selectedMemberId)}
                     disabled={!selectedMemberId}
-                    className="server-option-btn danger"
+                    className="modal-button modal-button-danger"
                     style={{
-                        margin: 0,
-                        width: "auto",
-                        padding: "10px 24px",
-                        backgroundColor: selectedMemberId ? "#ed4245" : "#7a2729",
-                        color: selectedMemberId ? "white" : "#a19999",
-                        cursor: selectedMemberId ? "pointer" : "not-allowed",
-                        opacity: selectedMemberId ? 1 : 0.7
+                        opacity: selectedMemberId ? 1 : 0.5,
+                        cursor: selectedMemberId ? "pointer" : "not-allowed"
                     }}
                 >
                     Transfer & Leave

@@ -30,35 +30,45 @@ function RegisterForm({ onSubmit }) {
     };
 
     return (
-        <form className="register-form" onSubmit={handleSubmit}>
-            <h2>Create your Nexus account</h2>
+        <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="auth-input-group">
+                <label className="auth-label">USERNAME</label>
+                <input
+                    type="text"
+                    name="username"
+                    className="auth-input"
+                    value={formData.username}
+                    onChange={handleChange}
+                    required
+                />
+            </div>
 
-            <input
-                type="text"
-                name="username"
-                placeholder="Username"
-                value={formData.username}
-                onChange={handleChange}
-            />
+            <div className="auth-input-group">
+                <label className="auth-label">EMAIL</label>
+                <input
+                    type="email"
+                    name="email"
+                    className="auth-input"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                />
+            </div>
 
-            <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={handleChange}
-            />
+            <div className="auth-input-group">
+                <label className="auth-label">PASSWORD</label>
+                <input
+                    type="password"
+                    name="password"
+                    className="auth-input"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                />
+            </div>
 
-            <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-            />
-
-            <button type="submit">
-                Register
+            <button type="submit" className="auth-button">
+                Continue
             </button>
         </form>
     );

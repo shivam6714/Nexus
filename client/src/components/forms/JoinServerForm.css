@@ -1,5 +1,6 @@
 .join-server-form {
     display: flex;
+    /* Styles moved to Modal.css */
     flex-direction: column;
     gap: 16px;
     width: 340px;
