@@ -1106,7 +1106,7 @@ function Chat() {
                     pc = createVoicePeerConnection(senderUserId, channelId);
                 }
                 
-                await pc.setRemoteDescription(offer);
+                await pc.setRemoteDescription(new RTCSessionDescription(offer));
                 
                 const pendingCandidates = pendingVoiceIceCandidatesRef.current.get(senderUserId) || [];
                 for (const candidate of pendingCandidates) {
@@ -1136,7 +1136,7 @@ function Chat() {
             const pc = voicePeerConnectionsRef.current.get(senderUserId);
             if (pc) {
                 try {
-                    await pc.setRemoteDescription(answer);
+                    await pc.setRemoteDescription(new RTCSessionDescription(answer));
                     const pendingCandidates = pendingVoiceIceCandidatesRef.current.get(senderUserId) || [];
                     for (const candidate of pendingCandidates) {
                         if (candidate) {
