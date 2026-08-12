@@ -923,6 +923,11 @@ function Chat() {
     // Connect socket only once
     useEffect(() => {
         if (!socket.connected) {
+            let currentToken = localStorage.getItem("token");
+            if (currentToken) {
+                currentToken = currentToken.replace(/^"(.*)"$/, '$1');
+                socket.auth = { token: currentToken };
+            }
             socket.connect();
         }
 
