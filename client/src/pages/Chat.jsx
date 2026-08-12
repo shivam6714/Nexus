@@ -129,6 +129,8 @@ function Chat() {
     const [screenShareWarning, setScreenShareWarning] = useState(false);
 
     // Call state
+    const [isJoiningVoice, setIsJoiningVoice] = useState(false);
+    const [isRenegotiating, setIsRenegotiating] = useState(false);
     const [callState, _setCallState] = useState("idle"); // idle, calling, incoming, connected
     const [activeCall, _setActiveCall] = useState(null);
     const [isMuted, setIsMuted] = useState(false);
@@ -242,51 +244,62 @@ function Chat() {
             if (!voiceLocalVideoTrackRef.current) {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
-                    }
-                });
-                
-                const videoTrack = stream.getVideoTracks()[0];
-                voiceLocalVideoTrackRef.current = videoTrack;
-                
-                if (voiceLocalStreamRef.current) {
-                    voiceLocalStreamRef.current.addTrack(videoTrack);
-                }
-
-                voicePeerConnectionsRef.current.forEach(async (pc, remoteUserId) => {
-                    if (voiceLocalStreamRef.current) {
-                        const sender = pc.addTrack(videoTrack, voiceLocalStreamRef.current);
-                        voiceVideoSendersRef.current.set(remoteUserId, sender);
-
-                        try {
-                            const offer = await pc.createOffer();
-                            await pc.setLocalDescription(offer);
-                            socket.emit("voice-webrtc-offer", {
-                                channelId: activeVoiceChannel._id,
-                                targetUserId: remoteUserId,
-                                offer
-                            });
-                        } catch (err) {
-                            console.error("Renegotiation failed for", remoteUserId, err);
+        if (isRenegotiating) return;
+        setIsRenegotiating(true);
+        try {
+            if (!isVoiceVideoOn) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            frameRate: { ideal: 30 }
                         }
-                    }
-                });
-
-                setIsVoiceVideoOn(true);
-                setVoiceStreamsUpdate(prev => prev + 1);
-                
-                const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
-                setVoiceParticipants(prev => prev.map(p => 
-                    p.userId === currentUserId ? { ...p, isVideoOn: true } : p
-                ));
-                
-                if (socket.connected) {
-                    socket.emit("voice-video-toggled", {
-                        channelId: activeVoiceChannel._id,
-                        videoOn: true
                     });
+                    const videoTrack = stream.getVideoTracks()[0];
+                    
+                    voiceLocalVideoTrackRef.current = videoTrack;
+                    
+                    if (voiceLocalStreamRef.current) {
+                        voiceLocalStreamRef.current.addTrack(videoTrack);
+                    }
+                    
+                    setIsVoiceVideoOn(true);
+                    setVoiceStreamsUpdate(prev => prev + 1);
+                    
+                    voicePeerConnectionsRef.current.forEach(async (pc, remoteUserId) => {
+                        if (voiceLocalStreamRef.current) {
+                            const sender = pc.addTrack(videoTrack, voiceLocalStreamRef.current);
+                            voiceVideoSendersRef.current.set(remoteUserId, sender);
+
+                            try {
+                                const offer = await pc.createOffer();
+                                await pc.setLocalDescription(offer);
+                                socket.emit("voice-webrtc-offer", {
+                                    channelId: activeVoiceChannel._id,
+                                    targetUserId: remoteUserId,
+                                    offer
+                                });
+                            } catch (err) {
+                                console.error("Renegotiation failed for", remoteUserId, err);
+                            }
+                        }
+                    });
+                    
+                    const currentUserId = JSON.parse(localStorage.getItem("user") || "{}")._id;
+                    setVoiceParticipants(prev => prev.map(p => 
+                        p.userId === currentUserId ? { ...p, isVideoOn: true } : p
+                    ));
+                    
+                    if (socket.connected) {
+                        socket.emit("voice-video-toggled", {
+                            channelId: activeVoiceChannel._id,
+                            videoOn: true
+                        });
+                    }
+                } catch (err) {
+                    console.error("Failed to access camera", err);
+                    alert("Video Error: Could not access camera.");
                 }
             } else {
                 const videoTrack = voiceLocalVideoTrackRef.current;
@@ -305,13 +318,8 @@ function Chat() {
                     });
                 }
             }
-        } catch (err) {
-            console.error("Failed to access camera", err);
-            let message = "Failed to access camera: " + err.message;
-            if (err.name === "NotAllowedError") message = "Camera permission was denied.";
-            if (err.name === "NotFoundError") message = "No camera found.";
-            if (err.name === "NotReadableError") message = "Camera is in use by another application.";
-            alert("Camera Error: " + message);
+        } finally {
+            setIsRenegotiating(false);
         }
     };
 
@@ -362,13 +370,15 @@ function Chat() {
 
     const toggleVoiceScreenShare = async () => {
         if (!activeVoiceChannel) return;
-
-        if (isVoiceScreenSharing) {
-            stopVoiceScreenShare();
-            return;
-        }
+        if (isRenegotiating) return;
+        setIsRenegotiating(true);
 
         try {
+            if (isVoiceScreenSharing) {
+                stopVoiceScreenShare();
+                return;
+            }
+
             const stream = await navigator.mediaDevices.getDisplayMedia({
                 video: {
                     width: { ideal: 1920, max: 1920 },
@@ -1774,59 +1784,66 @@ function Chat() {
     };
 
     const handleSelectVoiceChannel = async (channel) => {
+        if (isJoiningVoice) return;
         if (activeVoiceChannel && activeVoiceChannel._id === channel._id) {
             setIsVoiceViewOpen(prev => !prev);
             return; // Already in this voice channel, just toggle view
         }
         
-        // If we were in another voice channel, leave it first
-        if (activeVoiceChannel) {
-            leaveVoiceChannel();
-        }
-
-        let stream;
+        setIsJoiningVoice(true);
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                },
-                video: false
-            });
-            voiceLocalStreamRef.current = stream;
-            
-            // Apply current mute state
-            const audioTrack = stream.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !isVoiceMuted;
+            // If we were in another voice channel, leave it first
+            if (activeVoiceChannel) {
+                leaveVoiceChannel();
             }
-        } catch (err) {
-            console.error("Failed to get microphone for voice channel", err);
-            let message = "Failed to access microphone: " + err.message;
-            if (err.name === "NotAllowedError") message = "Microphone permission was denied.";
-            if (err.name === "NotFoundError") message = "No microphone found.";
-            if (err.name === "NotReadableError") message = "Microphone is in use by another application.";
-            alert("Voice Error: " + message);
-            return;
-        }
 
-        // Set new active voice channel
-        setActiveVoiceChannel(channel);
-        setVoiceParticipants([]);
-        setVoiceConnectionState("connecting");
-        setIsVoiceViewOpen(true);
-        
-        if (socket.connected) {
-            socket.emit("join-voice-channel", {
-                channelId: channel._id,
-                initialState: {
-                    isMuted: isVoiceMuted,
-                    isVideoOn: isVoiceVideoOn,
-                    isScreenSharing: isVoiceScreenSharing
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
+                    video: false
+                });
+                voiceLocalStreamRef.current = stream;
+                
+                // Apply current mute state
+                const audioTrack = stream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !isVoiceMuted;
                 }
-            });
+            } catch (err) {
+                console.error("Failed to get microphone for voice channel", err);
+                let message = "Failed to access microphone: " + err.message;
+                if (err.name === "NotAllowedError") message = "Microphone permission was denied.";
+                if (err.name === "NotFoundError") message = "No microphone found.";
+                if (err.name === "NotReadableError") message = "Microphone is in use by another application.";
+                alert("Voice Error: " + message);
+                return;
+            }
+
+            // Set new active voice channel
+            setActiveVoiceChannel(channel);
+            setVoiceParticipants([]);
+            setVoiceConnectionState("connecting");
+            setIsVoiceViewOpen(true);
+            
+            if (socket.connected) {
+                socket.emit("join-voice-channel", {
+                    channelId: channel._id,
+                    initialState: {
+                        isMuted: isVoiceMuted,
+                        isVideoOn: isVoiceVideoOn,
+                        isScreenSharing: isVoiceScreenSharing
+                    }
+                });
+            }
+        } finally {
+            setIsJoiningVoice(false);
         }
+    };
     };
 
     const handleRenameServer = async (newName) => {
