@@ -456,7 +456,13 @@ function Chat() {
 
     const createVoicePeerConnection = (remoteUserId, channelId) => {
         const pc = new RTCPeerConnection({
-            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:stun1.l.google.com:19302" },
+                { urls: "stun:stun2.l.google.com:19302" },
+                { urls: "stun:stun3.l.google.com:19302" },
+                { urls: "stun:stun4.l.google.com:19302" }
+            ]
         });
         
         voicePeerConnectionsRef.current.set(remoteUserId, pc);
@@ -563,7 +569,13 @@ function Chat() {
 
     const createPeerConnection = (targetUserId, conversationId) => {
         const pc = new RTCPeerConnection({
-            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:stun1.l.google.com:19302" },
+                { urls: "stun:stun2.l.google.com:19302" },
+                { urls: "stun:stun3.l.google.com:19302" },
+                { urls: "stun:stun4.l.google.com:19302" }
+            ]
         });
 
         pc.onicecandidate = (event) => {
@@ -1068,7 +1080,9 @@ function Chat() {
                 
                 const pendingCandidates = pendingVoiceIceCandidatesRef.current.get(senderUserId) || [];
                 for (const candidate of pendingCandidates) {
-                    await pc.addIceCandidate(candidate);
+                    if (candidate) {
+                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    }
                 }
                 pendingVoiceIceCandidatesRef.current.set(senderUserId, []);
 
@@ -1095,7 +1109,9 @@ function Chat() {
                     await pc.setRemoteDescription(answer);
                     const pendingCandidates = pendingVoiceIceCandidatesRef.current.get(senderUserId) || [];
                     for (const candidate of pendingCandidates) {
-                        await pc.addIceCandidate(candidate);
+                        if (candidate) {
+                            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                        }
                     }
                     pendingVoiceIceCandidatesRef.current.set(senderUserId, []);
                 } catch (err) {
@@ -1111,7 +1127,9 @@ function Chat() {
             const pc = voicePeerConnectionsRef.current.get(senderUserId);
             if (pc && pc.remoteDescription) {
                 try {
-                    await pc.addIceCandidate(candidate);
+                    if (candidate) {
+                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    }
                 } catch (err) {
                     console.error("Error adding ice candidate", err);
                 }
