@@ -9,7 +9,7 @@ api.interceptors.request.use((config) => {
 
     if (token) {
         token = token.replace(/^"(.*)"$/, '$1'); // Strip quotes if they exist
-        config.headers.set("Authorization", `Bearer ${token}`);
+        config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;
