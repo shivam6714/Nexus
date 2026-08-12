@@ -2285,8 +2285,8 @@ function Chat() {
             >
                 {activeModal === "options" && (
                     <ServerOptions
-                        onCreate={() => setActiveModal("create")}
-                        onJoin={() => setActiveModal("join")}
+                        onCreateServer={() => setActiveModal("create")}
+                        onJoinServer={() => setActiveModal("join")}
                     />
                 )}
                 {activeModal === "serverSettings" && (
