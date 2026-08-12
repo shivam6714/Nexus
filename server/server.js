@@ -18,7 +18,15 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: process.env.CLIENT_URL,
+        origin: function (origin, callback) {
+            // Allow Vercel preview domains and localhost for development
+            // Allow the exact configured CLIENT_URL
+            if (!origin || origin.endsWith(".vercel.app") || origin.includes("localhost") || origin === process.env.CLIENT_URL) {
+                callback(null, true);
+            } else {
+                callback(null, false);
+            }
+        },
         methods: ["GET", "POST"],
         credentials: true,
     },

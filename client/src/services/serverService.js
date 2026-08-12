@@ -1,12 +1,12 @@
 import api from "./api";
 
 export const createServer = async (serverData) => {
-    const response = await api.post("/server/create", serverData);
+    const response = await api.post(`${import.meta.env.VITE_API_URL}/api/server/create`, serverData);
     return response.data;
 };
 
 export const getMyServers = async () => {
-    const response = await api.get("/server/my-servers");
+    const response = await api.get(`${import.meta.env.VITE_API_URL}/api/server/my-servers`);
     return response.data;
 };
 export const uploadServerIcon = async (serverId, file) => {
@@ -15,7 +15,7 @@ export const uploadServerIcon = async (serverId, file) => {
     formData.append("icon", file);
 
     const response = await api.put(
-        `/server/${serverId}/icon`,
+        `${import.meta.env.VITE_API_URL}/api/server/${serverId}/icon`,
         formData,
         {
             headers: {
@@ -28,26 +28,26 @@ export const uploadServerIcon = async (serverId, file) => {
 };
 
 export const getServerInfo = async (serverId) => {
-    const response = await api.get(`/server/${serverId}/info`);
+    const response = await api.get(`${import.meta.env.VITE_API_URL}/api/server/${serverId}/info`);
     return response.data;
 };
 
 export const leaveServer = async (serverId) => {
-    const response = await api.post(`/server/${serverId}/leave`);
+    const response = await api.post(`${import.meta.env.VITE_API_URL}/api/server/${serverId}/leave`);
     return response.data;
 };
 
 export const transferAndLeaveServer = async (serverId, newOwnerId) => {
-    const response = await api.post(`/server/${serverId}/transfer-leave`, { newOwnerId });
+    const response = await api.post(`${import.meta.env.VITE_API_URL}/api/server/${serverId}/transfer-leave`, { newOwnerId });
     return response.data;
 };
 
 export const deleteServer = async (serverId) => {
-    const response = await api.delete(`/server/${serverId}`);
+    const response = await api.delete(`${import.meta.env.VITE_API_URL}/api/server/${serverId}`);
     return response.data;
 };
 
 export const renameServer = async (serverId, name) => {
-    const response = await api.put(`/server/${serverId}/rename`, { name });
+    const response = await api.put(`${import.meta.env.VITE_API_URL}/api/server/${serverId}/rename`, { name });
     return response.data;
 };
