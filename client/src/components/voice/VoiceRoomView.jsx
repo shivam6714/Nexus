@@ -63,6 +63,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
             if (videoRef.current.srcObject !== stream) {
                 videoRef.current.srcObject = stream;
             }
+            videoRef.current.play().catch(err => console.warn("Video auto-play blocked:", err));
         }
     }, [stream, isVideoOn]);
 
@@ -71,6 +72,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
             if (audioRef.current.srcObject !== stream) {
                 audioRef.current.srcObject = stream;
             }
+            audioRef.current.play().catch(err => console.warn("Audio auto-play blocked:", err));
         }
     }, [stream, isLocal]);
 
