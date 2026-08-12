@@ -37,7 +37,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
             }
             const average = sum / dataArray.length;
             
-            const speaking = average > 10;
+            const speaking = average > 35;
             setIsSpeaking(speaking && !(isLocal ? isVoiceMuted : participant.isMuted));
 
             animationFrameId = requestAnimationFrame(checkSpeaking);
