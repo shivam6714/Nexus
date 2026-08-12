@@ -12,7 +12,16 @@ const userRoutes = require("./routes/userRoutes");
 const app = express();
 
 app.use(cors({
-    origin: process.env.CLIENT_URL,
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        // Allow Vercel preview domains and localhost for development
+        // Allow the exact configured CLIENT_URL
+        if (!origin || origin.endsWith(".vercel.app") || origin.includes("localhost") || origin === process.env.CLIENT_URL) {
+            callback(null, true);
+        } else {
+            callback(null, false);
+        }
+    },
     credentials: true,
 }));
 
