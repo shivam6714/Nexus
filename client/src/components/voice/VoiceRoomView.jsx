@@ -101,7 +101,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                         {participant.avatar ? (
                             <img 
-                                src={participant.avatar.startsWith('http') ? participant.avatar : `http://localhost:5000${participant.avatar}`} 
+                                src={participant.avatar.startsWith('http') ? participant.avatar : `${import.meta.env.VITE_API_URL}${participant.avatar}`} 
                                 alt={participant.username} 
                                 style={{ width: "80px", height: "80px", borderRadius: "50%", objectFit: "cover", boxShadow: "var(--shadow-sm)", border: isSpeaking ? "3px solid var(--status-online)" : "3px solid transparent", transition: "border-color 0.15s ease" }} 
                             />

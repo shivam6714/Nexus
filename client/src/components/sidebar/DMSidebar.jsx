@@ -31,7 +31,7 @@ function DMSidebar({
                             >
                                 <div style={{ position: 'relative', flexShrink: 0 }}>
                                     <img
-                                        src={conv.otherParticipant?.avatar ? `http://localhost:5000${conv.otherParticipant.avatar}` : `https://ui-avatars.com/api/?name=${conv.otherParticipant?.username || "User"}&background=random`}
+                                        src={conv.otherParticipant?.avatar ? `${import.meta.env.VITE_API_URL}${conv.otherParticipant.avatar}` : `https://ui-avatars.com/api/?name=${conv.otherParticipant?.username || "User"}&background=random`}
                                         alt={conv.otherParticipant?.username || "User"}
                                         style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
                                     />

@@ -143,7 +143,7 @@ function MessageInput({
                         >
                             {replyingTo.sender.avatar ? (
                                 <img 
-                                    src={`http://localhost:5000${replyingTo.sender.avatar}`} 
+                                    src={`${import.meta.env.VITE_API_URL}${replyingTo.sender.avatar}`} 
                                     alt="avatar" 
                                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                 />

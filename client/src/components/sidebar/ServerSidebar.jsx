@@ -98,7 +98,7 @@ function ServerSidebar({
                         >
                             {server.icon ? (
                                 <img
-                                    src={`http://localhost:5000${server.icon}`}
+                                    src={`${import.meta.env.VITE_API_URL}${server.icon}`}
                                     alt={server.name}
                                     className="server-icon-image"
                                 />

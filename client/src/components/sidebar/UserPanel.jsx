@@ -36,7 +36,7 @@ function UserPanel() {
                 >
                     {user?.avatar ? (
                         <img
-                            src={`http://localhost:5000${user.avatar}`}
+                            src={`${import.meta.env.VITE_API_URL}${user.avatar}`}
                             alt="Avatar"
                         />
 

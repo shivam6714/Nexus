@@ -7,7 +7,7 @@ const ServerInfoModal = ({ serverInfo, onCopy, onClose }) => {
             <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
                 {serverInfo.icon ? (
                     <img 
-                        src={`http://localhost:5000${serverInfo.icon}`} 
+                        src={`${import.meta.env.VITE_API_URL}${serverInfo.icon}`} 
                         alt={serverInfo.name} 
                         style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }} 
                     />

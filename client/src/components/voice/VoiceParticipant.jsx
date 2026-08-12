@@ -118,7 +118,7 @@ function VoiceParticipant({ participant, stream, isLocal }) {
             <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
                 {participant.avatar ? (
                     <img 
-                        src={participant.avatar.startsWith('http') ? participant.avatar : `http://localhost:5000${participant.avatar}`} 
+                        src={participant.avatar.startsWith('http') ? participant.avatar : `${import.meta.env.VITE_API_URL}${participant.avatar}`} 
                         alt="avatar" 
                         style={{ 
                             width: "24px", 

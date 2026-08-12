@@ -45,7 +45,7 @@ const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }
                         >
                             {member.avatar ? (
                                 <img
-                                    src={`http://localhost:5000${member.avatar}`}
+                                    src={`${import.meta.env.VITE_API_URL}${member.avatar}`}
                                     alt={member.username}
                                     style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover" }}
                                 />

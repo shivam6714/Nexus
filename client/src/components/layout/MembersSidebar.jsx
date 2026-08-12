@@ -26,7 +26,7 @@ function MembersSidebar({
                     >
                         <div className="member-avatar-wrapper">
                             <img 
-                                src={member.avatar ? `http://localhost:5000${member.avatar}` : `https://ui-avatars.com/api/?name=${member.username}&background=random`} 
+                                src={member.avatar ? `${import.meta.env.VITE_API_URL}${member.avatar}` : `https://ui-avatars.com/api/?name=${member.username}&background=random`} 
                                 alt={member.username}
                                 className="member-avatar"
                             />
@@ -47,7 +47,7 @@ function MembersSidebar({
                     >
                         <div className="member-avatar-wrapper">
                             <img 
-                                src={member.avatar ? `http://localhost:5000${member.avatar}` : `https://ui-avatars.com/api/?name=${member.username}&background=random`} 
+                                src={member.avatar ? `${import.meta.env.VITE_API_URL}${member.avatar}` : `https://ui-avatars.com/api/?name=${member.username}&background=random`} 
                                 alt={member.username}
                                 className="member-avatar"
                             />
