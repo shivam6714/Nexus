@@ -122,7 +122,8 @@ const uploadAvatar = async (req, res) => {
             });
         }
 
-        const avatarPath = req.file.path;
+        console.log("MULTER REQ.FILE:", req.file);
+        const avatarPath = req.file.secure_url || req.file.url || req.file.path;
 
         const user = await User.findByIdAndUpdate(
             req.user._id,
