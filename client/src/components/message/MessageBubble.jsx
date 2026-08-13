@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getImageUrl } from "../../utils/imageUrl";
 
 const formatMessageTime = (createdAt) => {
     if (!createdAt) return null;
@@ -143,7 +144,7 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                     >
                         {message.replyTo.sender.avatar ? (
                             <img
-                                src={`${import.meta.env.VITE_API_URL}${message.replyTo.sender.avatar}`}
+                                src={getImageUrl(message.replyTo.sender.avatar)}
                                 alt="avatar"
                                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             />
@@ -181,7 +182,7 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                     >
                         {message.sender.avatar ? (
                             <img
-                                src={`${import.meta.env.VITE_API_URL}${message.sender.avatar}`}
+                                src={getImageUrl(message.sender.avatar)}
                                 alt="avatar"
                                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             />
@@ -330,7 +331,7 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
 
                     {message.attachment && !imageError && (
                         <img
-                            src={`${import.meta.env.VITE_API_URL}${message.attachment}`}
+                            src={getImageUrl(message.attachment)}
                             alt="Attachment"
                             style={{
                                 maxWidth: "400px",
@@ -435,7 +436,7 @@ function MessageBubble({ message, currentUserId, onEdit, onDelete, onReply, onRe
                         &times;
                     </button>
                     <img
-                        src={`${import.meta.env.VITE_API_URL}${message.attachment}`}
+                        src={getImageUrl(message.attachment)}
                         alt="Attachment Fullscreen"
                         style={{
                             maxWidth: "90vw",

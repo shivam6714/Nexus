@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { uploadAvatar } from "../../services/profileService";
+import { getImageUrl } from "../../utils/imageUrl";
 import "./UserPanel.css";
 function UserPanel() {
     const user = JSON.parse(localStorage.getItem("user"));
@@ -36,7 +37,7 @@ function UserPanel() {
                 >
                     {user?.avatar ? (
                         <img
-                            src={`${import.meta.env.VITE_API_URL}${user.avatar}`}
+                            src={getImageUrl(user.avatar)}
                             alt="Avatar"
                         />
 
