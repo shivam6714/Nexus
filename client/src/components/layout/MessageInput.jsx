@@ -1,3 +1,4 @@
+import { getImageUrl } from "../../utils/imageUrl";
 import { SendHorizontal, Image as ImageIcon, X } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import api from "../../services/api";
@@ -143,8 +144,8 @@ function MessageInput({
                         >
                             {replyingTo.sender.avatar ? (
                                 <img 
-                                    src={`${import.meta.env.VITE_API_URL}${replyingTo.sender.avatar}`} 
-                                    alt="avatar" 
+                                    src={getImageUrl(replyingTo.sender.avatar)}
+                                    alt={replyingTo.sender.username}
                                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                 />
                             ) : (

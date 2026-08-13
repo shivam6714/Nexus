@@ -1,3 +1,4 @@
+import { getImageUrl } from "../../utils/imageUrl";
 
 const ServerInfoModal = ({ serverInfo, onCopy, onClose }) => {
     if (!serverInfo) return null;
@@ -7,7 +8,7 @@ const ServerInfoModal = ({ serverInfo, onCopy, onClose }) => {
             <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
                 {serverInfo.icon ? (
                     <img 
-                        src={`${import.meta.env.VITE_API_URL}${serverInfo.icon}`} 
+                        src={getImageUrl(serverInfo.icon)} 
                         alt={serverInfo.name} 
                         style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }} 
                     />

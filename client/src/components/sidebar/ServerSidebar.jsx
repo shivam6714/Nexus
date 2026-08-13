@@ -1,3 +1,4 @@
+import { getImageUrl } from "../../utils/imageUrl";
 import "./ServerSidebar.css";
 import { useNavigate, useLocation } from "react-router-dom";
 import { logoutUser } from "../../services/authService";
@@ -98,7 +99,7 @@ function ServerSidebar({
                         >
                             {server.icon ? (
                                 <img
-                                    src={`${import.meta.env.VITE_API_URL}${server.icon}`}
+                                    src={getImageUrl(server.icon)}
                                     alt={server.name}
                                     className="server-icon-image"
                                 />

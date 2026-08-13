@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getImageUrl } from "../../utils/imageUrl";
 import { MicOff, Mic } from "lucide-react";
 
 function VoiceParticipant({ participant, stream, isLocal }) {
@@ -118,7 +119,7 @@ function VoiceParticipant({ participant, stream, isLocal }) {
             <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
                 {participant.avatar ? (
                     <img 
-                        src={participant.avatar.startsWith('http') ? participant.avatar : `${import.meta.env.VITE_API_URL}${participant.avatar}`} 
+                        src={participant.avatar ? getImageUrl(participant.avatar) : `https://ui-avatars.com/api/?name=${participant.username}&background=random`} 
                         alt="avatar" 
                         style={{ 
                             width: "24px", 

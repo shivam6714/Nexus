@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { getImageUrl } from "../../utils/imageUrl";
+
 const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }) => {
     const [selectedMemberId, setSelectedMemberId] = useState(null);
 
@@ -8,44 +10,45 @@ const TransferOwnershipModal = ({ members, currentOwnerId, onTransfer, onClose }
     return (
         <div className="modal-form">
             <p style={{ marginTop: "-8px", color: "var(--text-secondary)", fontSize: "14px", lineHeight: "1.5" }}>
-                You must transfer ownership before leaving. Select a new owner from the list below:
+                Select a member to transfer server ownership to. This action cannot be undone, and you will become a regular member.
             </p>
 
-            <div
-                style={{
-                    maxHeight: "240px",
+            <div 
+                className="member-select-list" 
+                style={{ 
+                    marginTop: "20px", 
+                    maxHeight: "300px", 
                     overflowY: "auto",
                     display: "flex",
                     flexDirection: "column",
                     gap: "8px",
-                    backgroundColor: "var(--bg-tertiary)",
-                    padding: "8px",
-                    borderRadius: "var(--radius-sm)"
+                    paddingRight: "8px"
                 }}
             >
                 {eligibleMembers.length === 0 ? (
-                    <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "20px 0", margin: 0, fontSize: "14px" }}>
-                        No eligible members found.
-                    </p>
+                    <div style={{ color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>
+                        No other members in this server.
+                    </div>
                 ) : (
                     eligibleMembers.map((member) => (
-                        <div
+                        <div 
                             key={member._id}
                             onClick={() => setSelectedMemberId(member._id)}
                             style={{
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "12px",
-                                padding: "8px",
-                                borderRadius: "var(--radius-xs)",
+                                padding: "10px 12px",
+                                borderRadius: "6px",
                                 cursor: "pointer",
-                                backgroundColor: selectedMemberId === member._id ? "var(--bg-modifier-selected)" : "transparent",
-                                transition: "background-color 0.1s ease-in-out"
+                                background: selectedMemberId === member._id ? "var(--bg-modifier-selected)" : "var(--bg-secondary)",
+                                border: `1px solid ${selectedMemberId === member._id ? "var(--primary-light)" : "transparent"}`,
+                                transition: "all 0.2s ease"
                             }}
                         >
                             {member.avatar ? (
-                                <img
-                                    src={`${import.meta.env.VITE_API_URL}${member.avatar}`}
+                                <img 
+                                    src={getImageUrl(member.avatar)}
                                     alt={member.username}
                                     style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover" }}
                                 />

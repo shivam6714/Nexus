@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { getImageUrl } from "../../utils/imageUrl";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MonitorUp, MonitorOff, Monitor, X, Minimize2 } from "lucide-react";
 
 function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, toggleVoiceMute, isVoiceVideoOn, toggleVoiceVideo, isVoiceScreenSharing, toggleVoiceScreenShare }) {
@@ -103,7 +104,7 @@ function VoiceGridTile({ participant, stream, isLocal, isVideoOn, isVoiceMuted, 
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                         {participant.avatar ? (
                             <img 
-                                src={participant.avatar.startsWith('http') ? participant.avatar : `${import.meta.env.VITE_API_URL}${participant.avatar}`} 
+                                src={participant.avatar ? getImageUrl(participant.avatar) : `https://ui-avatars.com/api/?name=${participant.username}&background=random`} 
                                 alt={participant.username} 
                                 style={{ width: "80px", height: "80px", borderRadius: "50%", objectFit: "cover", boxShadow: "var(--shadow-sm)", border: isSpeaking ? "3px solid var(--status-online)" : "3px solid transparent", transition: "border-color 0.15s ease" }} 
                             />
