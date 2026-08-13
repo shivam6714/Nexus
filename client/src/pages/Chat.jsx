@@ -240,10 +240,6 @@ function Chat() {
     const toggleVoiceVideo = async () => {
         if (!activeVoiceChannel) return;
 
-        try {
-            if (!voiceLocalVideoTrackRef.current) {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
         if (isRenegotiating) return;
         setIsRenegotiating(true);
         try {
