@@ -1840,7 +1840,6 @@ function Chat() {
             setIsJoiningVoice(false);
         }
     };
-    };
 
     const handleRenameServer = async (newName) => {
         if (!selectedServer) return;
