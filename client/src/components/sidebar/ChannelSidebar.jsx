@@ -21,7 +21,8 @@ function ChannelSidebar({
     voiceStreamsUpdate,
     voiceConnectionState,
     isVoiceViewOpen,
-    onToggleVoiceView
+    onToggleVoiceView,
+    width = 240
 }) {
     const textChannels = channels.filter(c => c.type === "text" || !c.type);
     const voiceChannels = channels.filter(c => c.type === "voice");
@@ -83,7 +84,7 @@ function ChannelSidebar({
     }, [activeVoiceChannel, isVoiceMuted, voiceLocalStreamRef]);
 
     return (
-        <aside className="channel-sidebar">
+        <aside className="channel-sidebar" style={{ width: `${width}px` }}>
             <div className="channel-header">
                 <h3>Channels</h3>
 

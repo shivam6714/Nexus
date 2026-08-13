@@ -5,11 +5,12 @@ function DMSidebar({
     conversations,
     selectedConversationId,
     onlineUsers = [],
+    width = 240,
 }) {
     const navigate = useNavigate();
 
     return (
-        <aside className="channel-sidebar">
+        <aside className="channel-sidebar" style={{ width: `${width}px` }}>
             <div className="channel-header">
                 <h3>Direct Messages</h3>
             </div>

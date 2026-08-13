@@ -41,6 +41,20 @@
     overflow-y: auto;
 }
 
+.sidebar-resizer {
+    width: 4px;
+    background: transparent;
+    cursor: col-resize;
+    flex-shrink: 0;
+    z-index: 10;
+    transition: background 0.2s ease;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer.is-resizing {
+    background: var(--brand-primary);
+}
+
 /* Chat Input Styling */
 .message-input {
     display: flex;
@@ -175,7 +189,7 @@
     color: var(--text-primary);
     padding: 8px;
     border-radius: var(--radius-sm);
-    fontSize: 13px;
+    font-size: 13px;
     cursor: pointer;
     display: flex;
     align-items: center;
