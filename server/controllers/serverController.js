@@ -205,7 +205,7 @@ const uploadServerIcon = async (req, res) => {
             });
         }
 
-        server.icon = `/uploads/server-icons/${req.file.filename}`;
+        server.icon = req.file.path;
 
         await server.save();
 

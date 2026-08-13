@@ -122,7 +122,7 @@ const uploadAvatar = async (req, res) => {
             });
         }
 
-        const avatarPath = `/uploads/avatars/${req.file.filename}`;
+        const avatarPath = req.file.path;
 
         const user = await User.findByIdAndUpdate(
             req.user._id,

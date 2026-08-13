@@ -18,7 +18,7 @@ router.post("/image", (req, res) => {
         }
 
         // Return the path
-        const imageUrl = `/uploads/messages/${req.file.filename}`;
+        const imageUrl = req.file.path;
         
         return res.status(200).json({
             message: "Image uploaded successfully",

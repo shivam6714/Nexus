@@ -1,30 +1,34 @@
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("cloudinary").v2;
+require("dotenv").config();
 
-// Ensure upload folders exist
-const avatarDir = path.join(__dirname, "../uploads/avatars");
-const serverIconDir = path.join(__dirname, "../uploads/server-icons");
-const messageDir = path.join(__dirname, "../uploads/messages");
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-fs.mkdirSync(avatarDir, { recursive: true });
-fs.mkdirSync(serverIconDir, { recursive: true });
-fs.mkdirSync(messageDir, { recursive: true });
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
+// Setup Cloudinary Storage for Multer
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: async (req, file) => {
+        // Determine the folder based on the route
+        let folderName = "nexus_general";
         if (req.baseUrl.includes("auth")) {
-            cb(null, avatarDir);
+            folderName = "nexus_avatars";
         } else if (req.baseUrl.includes("upload") || req.originalUrl.includes("upload")) {
-            cb(null, messageDir);
+            folderName = "nexus_messages";
         } else {
-            cb(null, serverIconDir);
+            folderName = "nexus_server_icons";
         }
-    },
 
-    filename: (req, file, cb) => {
-        const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, file.fieldname + "-" + uniqueName + path.extname(file.originalname));
+        return {
+            folder: folderName,
+            allowed_formats: ["png", "jpeg", "jpg", "webp"],
+            public_id: file.fieldname + "-" + Date.now() + "-" + Math.round(Math.random() * 1e9),
+        };
     },
 });
 
