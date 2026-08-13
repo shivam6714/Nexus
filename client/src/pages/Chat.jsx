@@ -102,11 +102,13 @@ function Chat() {
     // Resizable Sidebar State
     const [sidebarWidth, setSidebarWidth] = useState(240);
     const [isResizing, setIsResizing] = useState(false);
+    const resizerRef = useRef({ startX: 0, startWidth: 0 });
 
     useEffect(() => {
         const handleMouseMove = (e) => {
             if (!isResizing) return;
-            const newWidth = Math.min(Math.max(e.clientX - 72, 200), 600);
+            const dx = e.clientX - resizerRef.current.startX;
+            const newWidth = Math.min(Math.max(resizerRef.current.startWidth + dx, 200), 600);
             setSidebarWidth(newWidth);
         };
 
@@ -115,11 +117,15 @@ function Chat() {
         };
 
         if (isResizing) {
+            document.body.style.userSelect = 'none';
             document.addEventListener("mousemove", handleMouseMove);
             document.addEventListener("mouseup", handleMouseUp);
+        } else {
+            document.body.style.userSelect = '';
         }
 
         return () => {
+            document.body.style.userSelect = '';
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
         };
@@ -127,6 +133,7 @@ function Chat() {
 
     const handleMouseDownResizer = (e) => {
         e.preventDefault();
+        resizerRef.current = { startX: e.clientX, startWidth: sidebarWidth };
         setIsResizing(true);
     };
     const messagesContainerRef = useRef(null);
