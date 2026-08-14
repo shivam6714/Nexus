@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowDown, Phone, PhoneOff, Mic, MicOff, Video, VideoOff, X } from "lucide-react";
 import Modal from "../components/common/Modal";
@@ -98,6 +98,12 @@ function Chat() {
         "Notification" in window ? Notification.permission : "denied"
     );
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+    // New Refs for Scroll Logic
+    const isNearBottomRef = useRef(true);
+    const prevMessagesLength = useRef(0);
+    const prevFirstMessageId = useRef(null);
+    const scrollHeightRef = useRef(0);
 
     // Resizable Sidebar State
     const [sidebarWidth, setSidebarWidth] = useState(240);
@@ -1720,9 +1726,11 @@ function Chat() {
 
     const handleScroll = (e) => {
         const container = e.target;
-        const threshold = 50;
+        const threshold = 100;
         const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+        isNearBottomRef.current = isNearBottom;
         setShowScrollToBottom(!isNearBottom);
+        scrollHeightRef.current = container.scrollHeight;
     };
 
     const handleScrollToBottom = () => {
@@ -1731,8 +1739,47 @@ function Chat() {
             top: messagesContainerRef.current.scrollHeight,
             behavior: "smooth"
         });
+        isNearBottomRef.current = true;
         setShowScrollToBottom(false);
     };
+
+    useLayoutEffect(() => {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+
+        const currentFirstMessageId = messages.length > 0 ? messages[0]._id : null;
+        const previousLength = prevMessagesLength.current;
+        const currentLength = messages.length;
+
+        if (currentLength === 0) {
+            // No messages, do nothing (wait for fetch)
+        } else if (previousLength === 0 || !prevFirstMessageId.current || (currentFirstMessageId !== prevFirstMessageId.current && currentLength <= previousLength)) {
+            // Initial load or switched conversation
+            container.scrollTop = container.scrollHeight;
+            isNearBottomRef.current = true;
+            setShowScrollToBottom(false);
+        } else if (currentFirstMessageId !== prevFirstMessageId.current && currentLength > previousLength) {
+            // Older messages loaded (prepended history)
+            const newScrollHeight = container.scrollHeight;
+            const diff = newScrollHeight - scrollHeightRef.current;
+            container.scrollTop += diff;
+        } else if (currentLength > previousLength && currentFirstMessageId === prevFirstMessageId.current) {
+            // New message arrived (appended)
+            if (isNearBottomRef.current) {
+                container.scrollTo({
+                    top: container.scrollHeight,
+                    behavior: "smooth"
+                });
+            } else {
+                // User reading older messages, preserve position
+                setShowScrollToBottom(true);
+            }
+        }
+
+        prevMessagesLength.current = currentLength;
+        prevFirstMessageId.current = currentFirstMessageId;
+        scrollHeightRef.current = container.scrollHeight;
+    }, [messages]);
 
     const handleSend = async () => {
         const trimmedMessage = message.trim();
@@ -1740,6 +1787,7 @@ function Chat() {
         if (!trimmedMessage && !attachment) return;
 
         emitTypingStop();
+        isNearBottomRef.current = true;
 
         console.log("Sending:", { trimmedMessage, attachment });
 
